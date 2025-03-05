@@ -1,7 +1,8 @@
 import { useState } from "react";
 
 function Login() {
-  const [username, setUsername] = useState(""); // Fixed typo: userState -> useState
+  const logoPath = "../../public/btic-logo.svg";
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
@@ -24,14 +25,20 @@ function Login() {
   };
 
   return (
-    // Added missing return statement
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="flex items-center justify-center min-h-screen bg-onyx-100">
       <div className="w-full max-w-md">
         <form
           onSubmit={handleSubmit}
-          className="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4"
+          className="bg-brand-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4"
         >
-          <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
+          <div className="flex justify-center mb-4">
+            <img 
+              src={logoPath} 
+              alt="BTC Logo" 
+              className="h-20 w-auto" 
+            />
+          </div>
+          <h2 className="text-2xl font-bold mb-6 text-center text-onyx-500">
             Sage-Bitrix Configurator
           </h2>
 
@@ -44,31 +51,31 @@ function Login() {
           <div className="mb-4">
             <label
               htmlFor="username"
-              className="block text-gray-700 text-sm font-bold mb-2"
+              className="block text-onyx-600 text-sm font-bold mb-2"
             >
               Username
             </label>
             <input
               type="text"
               id="username"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-onyx-700 leading-tight focus:outline-none focus:shadow-outline"
               placeholder="Enter your username"
-              value={username} // Added missing value binding
-              onChange={(e) => setUsername(e.target.value)} // Added missing onChange handler
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
             />
           </div>
 
           <div className="mb-6">
             <label
               htmlFor="password"
-              className="block text-gray-700 text-sm font-bold mb-2"
+              className="block text-onyx-600 text-sm font-bold mb-2"
             >
               Password
             </label>
             <input
               type="password"
               id="password"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-onyx-700 leading-tight focus:outline-none focus:shadow-outline"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
@@ -77,15 +84,15 @@ function Login() {
 
           <div className="flex items-center justify-center">
             <button
-              type="submit" // Added type="submit" for form submission
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300"
+              type="submit"
+              className="bg-onyx-500 hover:bg-onyx-600 text-brand-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300"
             >
               Sign In
             </button>
           </div>
         </form>
 
-        <p className="text-center text-gray-500 text-xs">
+        <p className="text-center text-onyx-700 text-xs">
           &copy;2025 Bussiness Tic Consultoria. All rights reserved.
         </p>
       </div>
