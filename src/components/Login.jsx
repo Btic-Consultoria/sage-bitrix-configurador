@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-function Login() {
-  const logoPath = "../../public/btic-logo.svg";
+function Login(props) {
+  const logoPath = "/btic-logo-black.svg";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -18,10 +18,12 @@ function Login() {
     // Clear error if validation passes
     setError("");
 
-    // TODO: Handle login logic
+    // For development purposes, we'll accept any credentials
+    // In a real app, this would validate against a server
     console.log("Login attempt with:", { username, password });
 
-    // Call a function to authenticate
+    // Call onLogin function passed from App component
+    props.onLogin(username);
   };
 
   return (
@@ -32,11 +34,7 @@ function Login() {
           className="bg-brand-white shadow-md rounded-lg px-8 pt-6 pb-8 mb-4"
         >
           <div className="flex justify-center mb-4">
-            <img 
-              src={logoPath} 
-              alt="BTC Logo" 
-              className="h-20 w-auto" 
-            />
+            <img src={logoPath} alt="BTC Logo" className="h-20 w-auto" />
           </div>
           <h2 className="text-2xl font-bold mb-6 text-center text-onyx-500">
             Sage-Bitrix Configurator
