@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react";
 
 function Bitrix24Config({ config, updateConfig }) {
-  const [formData, setFormData] = useState(config);
+  const [formData, setFormData] = useState(
+    config || {
+      apiTenant: "",
+    }
+  );
 
   // Update local state when props change
   useEffect(() => {
-    setFormData(config);
+    setFormData(config || { apiTenant: "" });
   }, [config]);
 
   // Handle input changes
@@ -33,10 +37,23 @@ function Bitrix24Config({ config, updateConfig }) {
 
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 gap-6">
-            <p className="text-onyx-500">
-              Bitrix24 configuration options will be implemented here. Please
-              provide the required field details.
-            </p>
+            <div>
+              <label
+                htmlFor="apiTenant"
+                className="block text-onyx-600 text-sm font-bold mb-2"
+              >
+                API Tenant
+              </label>
+              <input
+                type="text"
+                id="apiTenant"
+                name="apiTenant"
+                value={formData.apiTenant || ""}
+                onChange={handleChange}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-onyx-700 leading-tight focus:outline-none focus:shadow-outline"
+                placeholder="https://your-company.bitrix24.com"
+              />
+            </div>
           </div>
 
           {/* Submit Button */}
