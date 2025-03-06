@@ -1,6 +1,7 @@
 import { useState } from "react";
 import DatabaseConfig from "./DatabaseConfig";
 import Bitrix24Config from "./Bitrix24Config";
+import Companies from "./Companies";
 
 function Dashboard({ user, onLogout }) {
   const [activeSection, setActiveSection] = useState("dashboard");
@@ -16,8 +17,9 @@ function Dashboard({ user, onLogout }) {
       license: "",
     },
     bitrix24: {
-      // We'll add Bitrix24 configuration fields later
+      apiTenant: "",
     },
+    companies: [],
   });
 
   // Handle configuration updates
@@ -64,6 +66,13 @@ function Dashboard({ user, onLogout }) {
             updateConfig={(data) => updateConfig("bitrix24", data)}
           />
         );
+      case "companies":
+        return (
+          <Companies
+            config={config}
+            updateConfig={(data) => updateConfig("companies", data)}
+          />
+        );
       default:
         return (
           <div className="flex flex-col items-center space-y-8 py-8">
@@ -87,6 +96,12 @@ function Dashboard({ user, onLogout }) {
                 description="Configure Bitrix24 CRM integration settings"
                 icon="🔌"
                 onClick={() => setActiveSection("bitrix24")}
+              />
+              <ConfigCard
+                title="Company Mappings"
+                description="Map Bitrix24 companies to Sage company codes"
+                icon="🏢"
+                onClick={() => setActiveSection("companies")}
               />
             </div>
 
@@ -139,6 +154,12 @@ function Dashboard({ user, onLogout }) {
               onClick={() => setActiveSection("bitrix24")}
             >
               Bitrix24
+            </NavLink>
+            <NavLink
+              active={activeSection === "companies"}
+              onClick={() => setActiveSection("companies")}
+            >
+              Companies
             </NavLink>
           </nav>
         </div>
