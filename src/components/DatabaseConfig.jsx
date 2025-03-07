@@ -188,16 +188,6 @@ function DatabaseConfig({ config, updateConfig }) {
           </div>
         </form>
       </div>
-
-      {/* Preview Section */}
-      <div className="mt-8 bg-onyx-200 rounded-lg p-6">
-        <h3 className="text-lg font-bold mb-4 text-onyx-600">
-          Configuration Preview
-        </h3>
-        <pre className="bg-onyx-100 p-4 rounded overflow-x-auto">
-          {JSON.stringify(formData, null, 2)}
-        </pre>
-      </div>
     </div>
   );
 }

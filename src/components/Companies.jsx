@@ -35,7 +35,7 @@ function Companies({ config, updateConfig }) {
     const updatedCompanies = [...companies, { ...newCompany }];
     setCompanies(updatedCompanies);
 
-    // Update parent component
+    // Update parent component with the updated companies array
     updateConfig({ companies: updatedCompanies });
 
     // Reset form
@@ -172,16 +172,6 @@ function Companies({ config, updateConfig }) {
             </button>
           </div>
         </form>
-      </div>
-
-      {/* Preview Section */}
-      <div className="mt-8 bg-onyx-200 rounded-lg p-6">
-        <h3 className="text-lg font-bold mb-4 text-onyx-600">
-          Configuration Preview
-        </h3>
-        <pre className="bg-onyx-100 p-4 rounded overflow-x-auto">
-          {JSON.stringify({ companies }, null, 2)}
-        </pre>
       </div>
     </div>
   );

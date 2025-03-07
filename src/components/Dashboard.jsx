@@ -24,29 +24,87 @@ function Dashboard({ user, onLogout }) {
 
   // Handle configuration updates
   const updateConfig = (section, data) => {
-    setConfig((prevConfig) => ({
-      ...prevConfig,
-      [section]: {
-        ...prevConfig[section],
-        ...data,
-      },
-    }));
+    if (section === "companies") {
+      // For companies, we want to replace the entire companies array
+      setConfig((prevConfig) => ({
+        ...prevConfig,
+        companies: data.companies || [],
+      }));
+    } else {
+      // For other sections, merge the data
+      setConfig((prevConfig) => ({
+        ...prevConfig,
+        [section]: {
+          ...prevConfig[section],
+          ...data,
+        },
+      }));
+    }
   };
 
   // Generate and download JSON file
   const generateJsonFile = () => {
-    // Create a blob with the JSON data
-    const jsonData = JSON.stringify(config, null, 2);
-    const blob = new Blob([jsonData], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
+    // Validate configuration data
+    const missingFields = [];
 
-    // Create a temporary link and trigger download
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "sage-bitrix-config.json";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Check database config
+    if (!config.database.dbHost) missingFields.push("Database Host");
+    if (!config.database.dbDatabase) missingFields.push("Database Name");
+    if (!config.database.dbUsername) missingFields.push("Database Username");
+    if (!config.database.dbPassword) missingFields.push("Database Password");
+
+    // Check Bitrix config
+    if (!config.bitrix24.apiTenant) missingFields.push("Bitrix24 API Tenant");
+
+    // Check if companies exist
+    if (config.companies.length === 0) missingFields.push("Company Mappings");
+
+    // If any fields are missing, alert the user
+    if (missingFields.length > 0) {
+      alert(
+        `Please complete the following fields before generating the configuration file:\n\n${missingFields.join(
+          "\n"
+        )}`
+      );
+      return;
+    }
+
+    // Map configuration to expected JSON structure - matches exactly the example
+    const configJson = {
+      CodigoCliente: user.username,
+      Db: {
+        DB_Host: config.database.dbHost,
+        DB_Host_Sage: config.database.dbHostSage,
+        DB_Port: config.database.dbPort,
+        DB_Database: config.database.dbDatabase,
+        DB_Username: config.database.dbUsername,
+        DB_Password: config.database.dbPassword,
+        IdLlicencia: config.database.license,
+      },
+      Bitrix24: {
+        API_Tenant: config.bitrix24.apiTenant,
+      },
+      Empresas: config.companies.map((company) => ({
+        EmpresaBitrix: company.bitrixCompany,
+        EmpresaSage: company.sageCompanyCode,
+      })),
+    };
+
+    // Convert to JSON string with pretty formatting
+    const jsonString = JSON.stringify(configJson, null, 4);
+
+    // Create a blob and download the file
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `config-${user.username}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    alert("Configuration file generated successfully!");
   };
 
   // Render the appropriate content based on active section
