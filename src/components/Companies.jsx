@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 
 function Companies({ config, updateConfig }) {
-  const [companies, setCompanies] = useState(config?.companies || []);
+  const [companies, setCompanies] = useState(
+    Array.isArray(config?.companies) ? config.companies : []
+  );
   const [newCompany, setNewCompany] = useState({
     bitrixCompany: "",
     sageCompanyCode: "",
@@ -9,7 +11,7 @@ function Companies({ config, updateConfig }) {
 
   // Update local state when props change
   useEffect(() => {
-    if (config?.companies) {
+    if (Array.isArray(config?.companies)) {
       setCompanies(config.companies);
     }
   }, [config]);
@@ -35,8 +37,8 @@ function Companies({ config, updateConfig }) {
     const updatedCompanies = [...companies, { ...newCompany }];
     setCompanies(updatedCompanies);
 
-    // Update parent component with the updated companies array
-    updateConfig({ companies: updatedCompanies });
+    // Update parent component with the array directly
+    updateConfig(updatedCompanies);
 
     // Reset form
     setNewCompany({
@@ -49,13 +51,13 @@ function Companies({ config, updateConfig }) {
   const handleRemoveCompany = (index) => {
     const updatedCompanies = companies.filter((_, i) => i !== index);
     setCompanies(updatedCompanies);
-    updateConfig({ companies: updatedCompanies });
+    updateConfig(updatedCompanies);
   };
 
   // Save all changes
   const handleSubmit = (e) => {
     e.preventDefault();
-    updateConfig({ companies });
+    updateConfig(companies);
     alert("Company mappings saved!");
   };
 
@@ -172,6 +174,16 @@ function Companies({ config, updateConfig }) {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Preview Section */}
+      <div className="mt-8 bg-onyx-200 rounded-lg p-6">
+        <h3 className="text-lg font-bold mb-4 text-onyx-600">
+          Configuration Preview
+        </h3>
+        <pre className="bg-onyx-100 p-4 rounded overflow-x-auto">
+          {JSON.stringify({ companies }, null, 2)}
+        </pre>
       </div>
     </div>
   );

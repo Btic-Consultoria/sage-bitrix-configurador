@@ -2,9 +2,13 @@ import { useState } from "react";
 import DatabaseConfig from "./DatabaseConfig";
 import Bitrix24Config from "./Bitrix24Config";
 import Companies from "./Companies";
+import { invoke } from "@tauri-apps/api/core";
 
 function Dashboard({ user, onLogout }) {
   const [activeSection, setActiveSection] = useState("dashboard");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationResult, setGenerationResult] = useState(null);
+
   // This will store our configuration data
   const [config, setConfig] = useState({
     database: {
@@ -25,13 +29,13 @@ function Dashboard({ user, onLogout }) {
   // Handle configuration updates
   const updateConfig = (section, data) => {
     if (section === "companies") {
-      // For companies, we want to replace the entire companies array
+      // For companies, directly update the array instead of nesting it
       setConfig((prevConfig) => ({
         ...prevConfig,
-        companies: data.companies || [],
+        companies: data.companies || data,
       }));
     } else {
-      // For other sections, merge the data
+      // For other sections, merge with existing data
       setConfig((prevConfig) => ({
         ...prevConfig,
         [section]: {
@@ -42,69 +46,89 @@ function Dashboard({ user, onLogout }) {
     }
   };
 
-  // Generate and download JSON file
-  const generateJsonFile = () => {
-    // Validate configuration data
-    const missingFields = [];
+  // Generate and encrypt JSON file
+  const generateJsonFile = async () => {
+    // Reset state
+    setIsGenerating(true);
+    setGenerationResult(null);
 
-    // Check database config
-    if (!config.database.dbHost) missingFields.push("Database Host");
-    if (!config.database.dbDatabase) missingFields.push("Database Name");
-    if (!config.database.dbUsername) missingFields.push("Database Username");
-    if (!config.database.dbPassword) missingFields.push("Database Password");
+    try {
+      // Validate configuration data
+      const missingFields = [];
 
-    // Check Bitrix config
-    if (!config.bitrix24.apiTenant) missingFields.push("Bitrix24 API Tenant");
+      // Check database config
+      if (!config.database.dbHost) missingFields.push("Database Host");
+      if (!config.database.dbDatabase) missingFields.push("Database Name");
+      if (!config.database.dbUsername) missingFields.push("Database Username");
+      if (!config.database.dbPassword) missingFields.push("Database Password");
 
-    // Check if companies exist
-    if (config.companies.length === 0) missingFields.push("Company Mappings");
+      // Check Bitrix config
+      if (!config.bitrix24.apiTenant) missingFields.push("Bitrix24 API Tenant");
 
-    // If any fields are missing, alert the user
-    if (missingFields.length > 0) {
-      alert(
-        `Please complete the following fields before generating the configuration file:\n\n${missingFields.join(
-          "\n"
-        )}`
-      );
-      return;
+      // Check if companies exist
+      if (config.companies.length === 0) missingFields.push("Company Mappings");
+
+      // If any fields are missing, alert the user
+      if (missingFields.length > 0) {
+        alert(
+          `Please complete the following fields before generating the configuration file:\n\n${missingFields.join(
+            "\n"
+          )}`
+        );
+        setIsGenerating(false);
+        return;
+      }
+
+      // Map configuration to expected JSON structure
+      const configJson = {
+        CodigoCliente: user.username,
+        DB: {
+          DB_Host: config.database.dbHost,
+          DB_Host_Sage: config.database.dbHostSage,
+          DB_Port: config.database.dbPort,
+          DB_Database: config.database.dbDatabase,
+          DB_Username: config.database.dbUsername,
+          DB_Password: config.database.dbPassword,
+          IdLlicencia: config.database.license,
+        },
+        Bitrix24: {
+          API_Tenant: config.bitrix24.apiTenant,
+        },
+        Empresas: config.companies.map((company) => ({
+          EmpresaBitrix: company.bitrixCompany,
+          EmpresaSage: company.sageCompanyCode,
+        })),
+      };
+
+      // Convert to JSON string
+      const jsonString = JSON.stringify(configJson, null, 4);
+
+      // Define output path
+      const outputPath = `config-${user.username}.json`;
+
+      // Call the Rust encryption function via Tauri
+      const result = await invoke("encrypt_json", {
+        jsonData: jsonString,
+        outputPath: outputPath,
+        charKey: "T", // Use the same default as in the Go app
+      });
+
+      // Show success message
+      setGenerationResult({
+        success: true,
+        message: result.message,
+        filePath: result.file_path,
+      });
+    } catch (error) {
+      // Show error message
+      console.error("Error generating config file:", error);
+      setGenerationResult({
+        success: false,
+        message: `Error: ${error.toString()}`,
+      });
+    } finally {
+      setIsGenerating(false);
     }
-
-    // Map configuration to expected JSON structure - matches exactly the example
-    const configJson = {
-      CodigoCliente: user.username,
-      Db: {
-        DB_Host: config.database.dbHost,
-        DB_Host_Sage: config.database.dbHostSage,
-        DB_Port: config.database.dbPort,
-        DB_Database: config.database.dbDatabase,
-        DB_Username: config.database.dbUsername,
-        DB_Password: config.database.dbPassword,
-        IdLlicencia: config.database.license,
-      },
-      Bitrix24: {
-        API_Tenant: config.bitrix24.apiTenant,
-      },
-      Empresas: config.companies.map((company) => ({
-        EmpresaBitrix: company.bitrixCompany,
-        EmpresaSage: company.sageCompanyCode,
-      })),
-    };
-
-    // Convert to JSON string with pretty formatting
-    const jsonString = JSON.stringify(configJson, null, 4);
-
-    // Create a blob and download the file
-    const blob = new Blob([jsonString], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `config-${user.username}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    alert("Configuration file generated successfully!");
   };
 
   // Render the appropriate content based on active section
@@ -163,13 +187,36 @@ function Dashboard({ user, onLogout }) {
               />
             </div>
 
-            <div className="mt-8">
+            <div className="mt-8 flex flex-col items-center">
               <button
                 onClick={generateJsonFile}
-                className="bg-onyx-500 hover:bg-onyx-600 text-brand-white font-bold py-3 px-6 rounded focus:outline-none focus:shadow-outline transition duration-300"
+                disabled={isGenerating}
+                className={`bg-onyx-500 hover:bg-onyx-600 text-brand-white font-bold py-3 px-6 rounded focus:outline-none focus:shadow-outline transition duration-300 ${
+                  isGenerating ? "opacity-70 cursor-not-allowed" : ""
+                }`}
               >
-                Generate Configuration File
+                {isGenerating ? "Generating..." : "Generate Configuration File"}
               </button>
+
+              {generationResult && (
+                <div
+                  className={`mt-4 p-4 rounded-lg ${
+                    generationResult.success
+                      ? "bg-green-100 border border-green-400 text-green-700"
+                      : "bg-red-100 border border-red-400 text-red-700"
+                  }`}
+                >
+                  <p>{generationResult.message}</p>
+                  {generationResult.success && generationResult.filePath && (
+                    <p className="mt-2">
+                      File saved to:{" "}
+                      <span className="font-mono bg-onyx-100 px-2 py-1 rounded">
+                        {generationResult.filePath}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         );
