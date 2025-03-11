@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 
 function Companies({ config, updateConfig }) {
-  const [companies, setCompanies] = useState(config?.companies || []);
+  const [companies, setCompanies] = useState(
+    Array.isArray(config?.companies) ? config.companies : []
+  );
   const [newCompany, setNewCompany] = useState({
     bitrixCompany: "",
     sageCompanyCode: "",
@@ -9,7 +11,7 @@ function Companies({ config, updateConfig }) {
 
   // Update local state when props change
   useEffect(() => {
-    if (config?.companies) {
+    if (Array.isArray(config?.companies)) {
       setCompanies(config.companies);
     }
   }, [config]);
@@ -35,8 +37,8 @@ function Companies({ config, updateConfig }) {
     const updatedCompanies = [...companies, { ...newCompany }];
     setCompanies(updatedCompanies);
 
-    // Update parent component
-    updateConfig({ companies: updatedCompanies });
+    // Update parent component with the array directly
+    updateConfig(updatedCompanies);
 
     // Reset form
     setNewCompany({
@@ -49,13 +51,13 @@ function Companies({ config, updateConfig }) {
   const handleRemoveCompany = (index) => {
     const updatedCompanies = companies.filter((_, i) => i !== index);
     setCompanies(updatedCompanies);
-    updateConfig({ companies: updatedCompanies });
+    updateConfig(updatedCompanies);
   };
 
   // Save all changes
   const handleSubmit = (e) => {
     e.preventDefault();
-    updateConfig({ companies });
+    updateConfig(companies);
     alert("Company mappings saved!");
   };
 
