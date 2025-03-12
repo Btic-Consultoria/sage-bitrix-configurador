@@ -159,7 +159,7 @@ fn get_computer_info() -> String {
                 // Look for Physical Address (MAC)
                 if line.contains("Physical Address") {
                     if let Some(mac_part) = line.split(":").nth(1) {
-                        if let Some((name, mac)) = &mut current_interface {
+                        if let Some((_name, mac)) = &mut current_interface {
                             *mac = mac_part.trim().replace("-", "").replace(":", "");
                         }
                     }

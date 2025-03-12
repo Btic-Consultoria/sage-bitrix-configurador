@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DatabaseConfig from "./DatabaseConfig";
 import Bitrix24Config from "./Bitrix24Config";
 import Companies from "./Companies";
 import { invoke } from "@tauri-apps/api/core";
 
-function Dashboard({ user, onLogout }) {
+function Dashboard({ user, token, onLogout }) {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState(null);
@@ -26,6 +26,28 @@ function Dashboard({ user, onLogout }) {
     companies: [],
   });
 
+  // Load config on initial render
+  useEffect(() => {
+    // You could add logic here to load saved config data from an API using the token
+    // Example:
+    // async function loadConfig() {
+    //   try {
+    //     const response = await fetch('https://api.btic.cat/config', {
+    //       headers: {
+    //         'Authorization': `Bearer ${token}`
+    //       }
+    //     });
+    //     if (response.ok) {
+    //       const data = await response.json();
+    //       setConfig(data);
+    //     }
+    //   } catch (error) {
+    //     console.error('Failed to load config:', error);
+    //   }
+    // }
+    // loadConfig();
+  }, [token]);
+
   // Handle configuration updates
   const updateConfig = (section, data) => {
     if (section === "companies") {
@@ -44,6 +66,9 @@ function Dashboard({ user, onLogout }) {
         },
       }));
     }
+
+    // You could also save this to an API using the token
+    // saveConfigToApi(section, data, token);
   };
 
   // Generate and encrypt JSON file
@@ -159,12 +184,21 @@ function Dashboard({ user, onLogout }) {
         return (
           <div className="flex flex-col items-center space-y-8 py-8">
             <h2 className="text-2xl font-bold text-onyx-600">
-              Welcome to Sage-Bitrix Configurator
+              Welcome to Sage-Bitrix Configurator, {user.username}
             </h2>
             <p className="text-onyx-500 max-w-lg text-center">
               This tool helps you configure the connection between Sage 200c and
               Bitrix24 CRM. Use the options below to set up your configuration.
             </p>
+
+            {/* User profile information if available */}
+            {user.profile && (
+              <div className="bg-onyx-100 p-4 rounded-lg max-w-lg w-full">
+                <h3 className="text-lg font-semibold mb-2">Your Profile</h3>
+                <p>User Type: {user.userType || "Standard"}</p>
+                {/* Display other relevant user information here */}
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
               <ConfigCard
