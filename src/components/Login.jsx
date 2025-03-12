@@ -1,12 +1,14 @@
 import { useState } from "react";
+import { login, getUserProfile } from "../services/authService";
 
-function Login(props) {
+function Login({ onLogin }) {
   const logoPath = "/btic-logo-black.svg";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Basic validation
@@ -17,13 +19,45 @@ function Login(props) {
 
     // Clear error if validation passes
     setError("");
+    setIsLoading(true);
 
-    // For development purposes, we'll accept any credentials
-    // In a real app, this would validate against a server
-    console.log("Login attempt with:", { username, password });
+    try {
+      // Attempt to login
+      const loginResult = await login(username, password);
 
-    // Call onLogin function passed from App component
-    props.onLogin(username);
+      if (!loginResult.success) {
+        setError(loginResult.error || "Login failed. Please check your credentials.");
+        setIsLoading(false);
+        return;
+      }
+
+      const token = loginResult.token;
+      
+      // If login is successful, get user profile
+      const profileResult = await getUserProfile(token);
+      
+      if (!profileResult.success) {
+        setError("Login successful but failed to get user profile");
+        setIsLoading(false);
+        return;
+      }
+
+      // We have everything we need, call the onLogin handler
+      const userData = {
+        username,
+        profile: profileResult.profile,
+        // You can extract specific data from the profile if needed
+        userType: profileResult.profile.tipus_usuari_id_id
+      };
+
+      // Call the login handler passed from App component
+      onLogin(userData, token);
+    } catch (error) {
+      console.error("Login process error:", error);
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -60,6 +94,7 @@ function Login(props) {
               placeholder="Enter your username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              disabled={isLoading}
             />
           </div>
 
@@ -77,15 +112,19 @@ function Login(props) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
+              disabled={isLoading}
             />
           </div>
 
           <div className="flex items-center justify-center">
             <button
               type="submit"
-              className="bg-onyx-500 hover:bg-onyx-600 text-brand-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300"
+              className={`bg-onyx-500 hover:bg-onyx-600 text-brand-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300 ${
+                isLoading ? "opacity-70 cursor-not-allowed" : ""
+              }`}
+              disabled={isLoading}
             >
-              Sign In
+              {isLoading ? "Signing in..." : "Sign In"}
             </button>
           </div>
         </form>
