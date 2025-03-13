@@ -45,19 +45,28 @@ pub async fn login_api(
                 token: None,
                 token_type: None,
                 first_login: None,
-                error: Some(format!("Request error: {}", e)),
+                error: Some(format!("Connection error: {}", e)),
             })
         }
     };
 
     // Check status
     if !response.status().is_success() {
+        // Return user-friendly messages based on status code
+        let error_message = match response.status().as_u16() {
+            401 => "Username or password is not correct".to_string(),
+            403 => "Access forbidden. Please contact your administrator".to_string(),
+            404 => "Login service not found. Please contact support".to_string(),
+            500..=599 => "Server error. Please try again later".to_string(),
+            _ => format!("Login failed with status: {}", response.status()),
+        };
+
         return Ok(LoginResult {
             success: false,
             token: None,
             token_type: None,
             first_login: None,
-            error: Some(format!("Login failed with status: {}", response.status())),
+            error: Some(error_message),
         });
     }
 
@@ -113,20 +122,26 @@ pub async fn get_user_profile(
             return Ok(ProfileResult {
                 success: false,
                 profile: None,
-                error: Some(format!("Request error: {}", e)),
+                error: Some(format!("Connection error: {}", e)),
             })
         }
     };
 
     // Check status
     if !response.status().is_success() {
+        // Return user-friendly messages based on status code
+        let error_message = match response.status().as_u16() {
+            401 => "Authentication token expired. Please login again".to_string(),
+            403 => "Access forbidden. Please contact your administrator".to_string(),
+            404 => "User profile service not found. Please contact support".to_string(),
+            500..=599 => "Server error. Please try again later".to_string(),
+            _ => format!("Failed to get profile with status: {}", response.status()),
+        };
+
         return Ok(ProfileResult {
             success: false,
             profile: None,
-            error: Some(format!(
-                "Failed to get profile with status: {}",
-                response.status()
-            )),
+            error: Some(error_message),
         });
     }
 
