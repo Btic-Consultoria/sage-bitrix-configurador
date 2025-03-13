@@ -28,6 +28,16 @@ function Dashboard({ user, token, onLogout }) {
 
   // Load config on initial render
   useEffect(() => {
+    // Load config from localStorage if available
+    const savedConfig = localStorage.getItem("sage_bitrix_config");
+    if (savedConfig) {
+      try {
+        setConfig(JSON.parse(savedConfig));
+      } catch (error) {
+        console.error("Failed to parse saved config:", error);
+      }
+    }
+
     // You could add logic here to load saved config data from an API using the token
     // Example:
     // async function loadConfig() {
@@ -69,6 +79,14 @@ function Dashboard({ user, token, onLogout }) {
 
     // You could also save this to an API using the token
     // saveConfigToApi(section, data, token);
+  };
+
+  // Save all ocnfiguration data
+  const saveAllData = () => {
+    // Save to localStorage for persistence between sessions
+    localStorage.setItem("sage_bitrix_config", JSON.stringify(config));
+
+    alert("All configuration data has been saved successfully!");
   };
 
   // Generate and encrypt JSON file
@@ -129,7 +147,7 @@ function Dashboard({ user, token, onLogout }) {
       const jsonString = JSON.stringify(configJson, null, 4);
 
       // Define output path
-      const outputPath = `config-${user.username}.json`;
+      const outputPath = `config-${user.username}`;
 
       // Call the Rust encryption function via Tauri
       const result = await invoke("encrypt_json", {
@@ -221,7 +239,14 @@ function Dashboard({ user, token, onLogout }) {
               />
             </div>
 
-            <div className="mt-8 flex flex-col items-center">
+            <div className="mt-8 flex flex-col items-center space-y-4">
+              <button
+                onClick={saveAllData}
+                className="bg-onyx-500 hover:bg-onyx-600 text-brand-white font-bold py-3 px-6 rounded focus:outline-none focus:shadow-outline transition duration-300"
+              >
+                Save All Configuration
+              </button>
+
               <button
                 onClick={generateJsonFile}
                 disabled={isGenerating}
@@ -229,7 +254,7 @@ function Dashboard({ user, token, onLogout }) {
                   isGenerating ? "opacity-70 cursor-not-allowed" : ""
                 }`}
               >
-                {isGenerating ? "Generating..." : "Generate Configuration File"}
+                {isGenerating ? "Generating..." : "Generate Encrypted File"}
               </button>
 
               {generationResult && (
