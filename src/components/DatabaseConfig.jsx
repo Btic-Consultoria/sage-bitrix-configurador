@@ -31,7 +31,26 @@ function DatabaseConfig({ config, updateConfig }) {
           Database Configuration
         </h2>
 
-        <div className="grid grid-cols1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* DB Host */}
+          <div className="col-span-1">
+            <label
+              htmlFor="dbHost"
+              className="block text-onyx-600 text-sm font-bold mb-2"
+            >
+              DB Host
+            </label>
+            <input
+              type="text"
+              id="dbHost"
+              name="dbHost"
+              value={formData.dbHost}
+              onChange={handleChange}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-onyx-700 leading-tight focus:outline-none focus:shadow-outline"
+              placeholder="e.g., localhost or 127.0.0.1"
+            />
+          </div>
+
           {/* DB Host Sage */}
           <div className="col-span-1">
             <label

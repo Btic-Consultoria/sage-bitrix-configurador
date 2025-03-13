@@ -10,14 +10,14 @@ function App() {
 
   // Check for saved token on startup
   useEffect(() => {
-    const savedToken = localStorage.getItem("auth_token");
-    const savedUser = localStorage.getItem("user_data");
+    // const savedToken = localStorage.getItem("auth_token");
+    // const savedUser = localStorage.getItem("user_data");
 
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-      setIsAuthenticated(true);
-    }
+    // if (savedToken && savedUser) {
+    //   setToken(savedToken);
+    //   setUser(JSON.parse(savedUser));
+    //   setIsAuthenticated(true);
+    // }
 
     setIsLoading(false);
   }, []);
@@ -25,8 +25,8 @@ function App() {
   // Handle successful login
   const handleLogin = (userData, authToken) => {
     // Save token and user data
-    localStorage.setItem("auth_token", authToken);
-    localStorage.setItem("user_data", JSON.stringify(userData));
+    // localStorage.setItem("auth_token", authToken);
+    // localStorage.setItem("user_data", JSON.stringify(userData));
 
     // Update state
     setToken(authToken);

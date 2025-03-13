@@ -250,29 +250,42 @@ fn get_key(key_length: usize, computer_info: &str, pad_char: char) -> Vec<u8> {
 
 // Function to encrypt data using AES-CBC with PKCS7 padding
 fn encrypt_data(data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>, String> {
-    // AES block size is always 16 bytes (128 bits)
-    const AES_BLOCK_SIZE: usize = 16;
-
-    // Create buffer for encrypted output
-    let mut buffer = Vec::with_capacity(data.len() + AES_BLOCK_SIZE);
-    buffer.extend_from_slice(data);
-
-    // Ensure buffer has space for padding
-    buffer.resize(
-        data.len() + (AES_BLOCK_SIZE - (data.len() % AES_BLOCK_SIZE)) % AES_BLOCK_SIZE,
-        0,
-    );
+    // Print debug info
+    println!("Data length: {} bytes", data.len());
+    println!("Key length: {} bytes", key.len());
+    println!("IV length: {} bytes", iv.len());
 
     // Create AES-CBC cipher
-    let cipher = Aes256CbcEnc::new_from_slices(key, iv)
-        .map_err(|e| format!("Error creating cipher: {}", e))?;
+    let cipher = match Aes256CbcEnc::new_from_slices(key, iv) {
+        Ok(c) => c,
+        Err(e) => return Err(format!("Error creating cipher: {}", e)),
+    };
 
-    // Encrypt in place with PKCS7 padding
-    let encrypted = cipher
-        .encrypt_padded_mut::<Pkcs7>(&mut buffer, data.len())
-        .map_err(|e| format!("Error during encryption: {}", e))?;
+    // Calculate needed buffer size (data length + padding)
+    let block_size = 16; // AES block size is always 16 bytes
+    let padding_len = block_size - (data.len() % block_size);
+    let buffer_len = data.len() + padding_len;
 
-    Ok(encrypted.to_vec())
+    println!(
+        "Buffer size calculated: {} bytes (with {} padding)",
+        buffer_len, padding_len
+    );
+
+    // Create properly sized buffer
+    let mut buffer = vec![0u8; buffer_len];
+    buffer[..data.len()].copy_from_slice(data);
+
+    // Encrypt with PKCS7 padding
+    match cipher.encrypt_padded_mut::<Pkcs7>(&mut buffer, data.len()) {
+        Ok(encrypted) => {
+            println!(
+                "Encryption successful, output length: {} bytes",
+                encrypted.len()
+            );
+            Ok(encrypted.to_vec())
+        }
+        Err(e) => Err(format!("Error during encryption: {}", e)),
+    }
 }
 
 // Function to decrypt data using AES-CBC with PKCS7 padding
