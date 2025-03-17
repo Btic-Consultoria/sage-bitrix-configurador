@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 // Set to true to enable development mode
@@ -13,6 +13,95 @@ function Login({ onLogin }) {
   const [isFirstLogin, setIsFirstLogin] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [configExists, setConfigExists] = useState(false);
+  const usernameTimeoutRef = useRef(null);
+
+  // Add a check for config existence when username changes
+  const checkConfigExists = async (username) => {
+    if (!username.trim()) {
+      setConfigExists(false);
+      return;
+    }
+
+    try {
+      const exists = await invoke("config_exists", { username });
+      setConfigExists(exists);
+    } catch (error) {
+      console.warn("Error checking for config:", error);
+      setConfigExists(false);
+    }
+  };
+
+  // Handle username change with debounce for config check
+  const handleUsernameChange = (e) => {
+    const newUsername = e.target.value;
+    setUsername(newUsername);
+
+    // Debounce the config check to avoid too many API calls
+    if (usernameTimeoutRef.current) {
+      clearTimeout(usernameTimeoutRef.current);
+    }
+
+    usernameTimeoutRef.current = setTimeout(() => {
+      checkConfigExists(newUsername);
+    }, 500); // Wait 500ms after typing stops
+  };
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (usernameTimeoutRef.current) {
+        clearTimeout(usernameTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Function to try loading existing configuration
+  const tryLoadConfig = async (userData, token) => {
+    try {
+      // Attempt to decrypt any existing config file
+      const result = await invoke("decrypt_json", {
+        file_path: null, // Use default path
+        char_key: "T", // Use the default key
+        username: userData.username, // Pass username to find user-specific config
+      });
+
+      if (result.success && result.json_data) {
+        // Parse the JSON data
+        const configData = JSON.parse(result.json_data);
+        console.log("Loaded config data:", configData);
+
+        // Map the data to our application structure
+        const appConfig = {
+          database: {
+            dbHost: configData.DB?.DB_Host || "",
+            dbHostSage: configData.DB?.DB_Host_Sage || "",
+            dbPort: configData.DB?.DB_Port || "",
+            dbDatabase: configData.DB?.DB_Database || "",
+            dbUsername: configData.DB?.DB_Username || "",
+            dbPassword: configData.DB?.DB_Password || "",
+            license: configData.DB?.IdLlicencia || "",
+          },
+          bitrix24: {
+            apiTenant: configData.Bitrix24?.API_Tenant || "",
+          },
+          companies:
+            configData.Empresas?.map((e) => ({
+              bitrixCompany: e.EmpresaBitrix || "",
+              sageCompanyCode: e.EmpresaSage || "",
+            })) || [],
+        };
+
+        // Call the login handler with the config data
+        onLogin(userData, token, appConfig);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.warn("No config file found or error decrypting:", error);
+      return false;
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -61,7 +150,17 @@ function Login({ onLogin }) {
           company: "Dev Company",
           clientCode: username,
         };
-        onLogin(mockUserData, "dev-mode-mock-token-123");
+
+        // Try to load config first
+        const configLoaded = await tryLoadConfig(
+          mockUserData,
+          "dev-mode-mock-token-123"
+        );
+        if (!configLoaded) {
+          // If no config was loaded, just proceed with empty config
+          onLogin(mockUserData, "dev-mode-mock-token-123");
+        }
+
         return;
       }
 
@@ -109,8 +208,12 @@ function Login({ onLogin }) {
         clientCode: profileResult.profile.codi_client,
       };
 
-      // Call the login handler
-      onLogin(userData, token);
+      // Try to load config first
+      const configLoaded = await tryLoadConfig(userData, token);
+      if (!configLoaded) {
+        // If no config was loaded, just proceed with empty config
+        onLogin(userData, token);
+      }
     } catch (error) {
       console.error("Login process error:", error);
       setError("An unexpected error occurred. Please try again.");
@@ -231,9 +334,30 @@ function Login({ onLogin }) {
               className="shadow appearance-none border rounded w-full py-2 px-3 text-onyx-700 leading-tight focus:outline-none focus:shadow-outline"
               placeholder="Enter your username"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={handleUsernameChange} // Use the new handler
               disabled={isLoading}
             />
+            {configExists && (
+              <div className="mt-1 text-sm text-green-600">
+                <span className="flex items-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 mr-1"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  Existing configuration found for this username
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="mb-6">

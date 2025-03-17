@@ -4,93 +4,38 @@ import Bitrix24Config from "./Bitrix24Config";
 import Companies from "./Companies";
 import { invoke } from "@tauri-apps/api/core";
 
-function Dashboard({ user, token, onLogout }) {
+function Dashboard({ user, token, config, updateConfig, onLogout }) {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState(null);
+  const [localConfig, setLocalConfig] = useState(config);
 
-  // This will store our configuration data
-  const [config, setConfig] = useState({
-    database: {
-      dbHost: "",
-      dbHostSage: "",
-      dbPort: "",
-      dbDatabase: "",
-      dbUsername: "",
-      dbPassword: "",
-      license: "",
-    },
-    bitrix24: {
-      apiTenant: "",
-    },
-    companies: [],
-  });
-
-  // Load config on initial render
+  // Update local config when props change
   useEffect(() => {
-    // Load config from localStorage if available
-    const savedConfig = localStorage.getItem("sage_bitrix_config");
-    if (savedConfig) {
-      try {
-        setConfig(JSON.parse(savedConfig));
-      } catch (error) {
-        console.error("Failed to parse saved config:", error);
-      }
-    }
-
-    // You could add logic here to load saved config data from an API using the token
-    // Example:
-    // async function loadConfig() {
-    //   try {
-    //     const response = await fetch('https://api.btic.cat/config', {
-    //       headers: {
-    //         'Authorization': `Bearer ${token}`
-    //       }
-    //     });
-    //     if (response.ok) {
-    //       const data = await response.json();
-    //       setConfig(data);
-    //     }
-    //   } catch (error) {
-    //     console.error('Failed to load config:', error);
-    //   }
-    // }
-    // loadConfig();
-  }, [token]);
+    setLocalConfig(config);
+  }, [config]);
 
   // Handle configuration updates
-  const updateConfig = (section, data) => {
+  const handleUpdateConfig = (section, data) => {
+    let newConfig = { ...localConfig };
+
     if (section === "companies") {
       // For companies, directly update the array instead of nesting it
-      setConfig((prevConfig) => ({
-        ...prevConfig,
-        companies: data.companies || data,
-      }));
+      newConfig.companies = data.companies || data;
     } else {
       // For other sections, merge with existing data
-      setConfig((prevConfig) => ({
-        ...prevConfig,
-        [section]: {
-          ...prevConfig[section],
-          ...data,
-        },
-      }));
+      newConfig[section] = {
+        ...newConfig[section],
+        ...data,
+      };
     }
 
-    // You could also save this to an API using the token
-    // saveConfigToApi(section, data, token);
+    setLocalConfig(newConfig);
+    updateConfig(newConfig);
   };
 
-  // Save all ocnfiguration data
-  const saveAllData = () => {
-    // Save to localStorage for persistence between sessions
-    localStorage.setItem("sage_bitrix_config", JSON.stringify(config));
-
-    alert("All configuration data has been saved successfully!");
-  };
-
-  // Generate and encrypt JSON file
-  const generateJsonFile = async () => {
+  // Save configuration to an encrypted file
+  const saveConfiguration = async () => {
     // Reset state
     setIsGenerating(true);
     setGenerationResult(null);
@@ -100,21 +45,26 @@ function Dashboard({ user, token, onLogout }) {
       const missingFields = [];
 
       // Check database config
-      if (!config.database.dbHost) missingFields.push("Database Host");
-      if (!config.database.dbDatabase) missingFields.push("Database Name");
-      if (!config.database.dbUsername) missingFields.push("Database Username");
-      if (!config.database.dbPassword) missingFields.push("Database Password");
+      if (!localConfig?.database?.dbHost) missingFields.push("Database Host");
+      if (!localConfig?.database?.dbDatabase)
+        missingFields.push("Database Name");
+      if (!localConfig?.database?.dbUsername)
+        missingFields.push("Database Username");
+      if (!localConfig?.database?.dbPassword)
+        missingFields.push("Database Password");
 
       // Check Bitrix config
-      if (!config.bitrix24.apiTenant) missingFields.push("Bitrix24 API Tenant");
+      if (!localConfig?.bitrix24?.apiTenant)
+        missingFields.push("Bitrix24 API Tenant");
 
       // Check if companies exist
-      if (config.companies.length === 0) missingFields.push("Company Mappings");
+      if (!localConfig?.companies?.length)
+        missingFields.push("Company Mappings");
 
       // If any fields are missing, alert the user
       if (missingFields.length > 0) {
         alert(
-          `Please complete the following fields before generating the configuration file:\n\n${missingFields.join(
+          `Please complete the following fields before saving the configuration:\n\n${missingFields.join(
             "\n"
           )}`
         );
@@ -126,18 +76,18 @@ function Dashboard({ user, token, onLogout }) {
       const configJson = {
         CodigoCliente: user.username,
         DB: {
-          DB_Host: config.database.dbHost,
-          DB_Host_Sage: config.database.dbHostSage,
-          DB_Port: config.database.dbPort,
-          DB_Database: config.database.dbDatabase,
-          DB_Username: config.database.dbUsername,
-          DB_Password: config.database.dbPassword,
-          IdLlicencia: config.database.license,
+          DB_Host: localConfig.database.dbHost,
+          DB_Host_Sage: localConfig.database.dbHostSage,
+          DB_Port: localConfig.database.dbPort,
+          DB_Database: localConfig.database.dbDatabase,
+          DB_Username: localConfig.database.dbUsername,
+          DB_Password: localConfig.database.dbPassword,
+          IdLlicencia: localConfig.database.license,
         },
         Bitrix24: {
-          API_Tenant: config.bitrix24.apiTenant,
+          API_Tenant: localConfig.bitrix24.apiTenant,
         },
-        Empresas: config.companies.map((company) => ({
+        Empresas: localConfig.companies.map((company) => ({
           EmpresaBitrix: company.bitrixCompany,
           EmpresaSage: company.sageCompanyCode,
         })),
@@ -153,7 +103,7 @@ function Dashboard({ user, token, onLogout }) {
       const result = await invoke("encrypt_json", {
         jsonData: jsonString,
         outputPath: outputPath,
-        charKey: "T", // Use the same default as in the Go app
+        charKey: "T",
       });
 
       // Show success message
@@ -164,7 +114,7 @@ function Dashboard({ user, token, onLogout }) {
       });
     } catch (error) {
       // Show error message
-      console.error("Error generating config file:", error);
+      console.error("Error saving configuration file:", error);
       setGenerationResult({
         success: false,
         message: `Error: ${error.toString()}`,
@@ -180,22 +130,22 @@ function Dashboard({ user, token, onLogout }) {
       case "database":
         return (
           <DatabaseConfig
-            config={config.database}
-            updateConfig={(data) => updateConfig("database", data)}
+            config={localConfig.database}
+            updateConfig={(data) => handleUpdateConfig("database", data)}
           />
         );
       case "bitrix24":
         return (
           <Bitrix24Config
-            config={config.bitrix24}
-            updateConfig={(data) => updateConfig("bitrix24", data)}
+            config={localConfig.bitrix24}
+            updateConfig={(data) => handleUpdateConfig("bitrix24", data)}
           />
         );
       case "companies":
         return (
           <Companies
-            config={config}
-            updateConfig={(data) => updateConfig("companies", data)}
+            config={localConfig}
+            updateConfig={(data) => handleUpdateConfig("companies", data)}
           />
         );
       default:
@@ -241,20 +191,13 @@ function Dashboard({ user, token, onLogout }) {
 
             <div className="mt-8 flex flex-col items-center space-y-4">
               <button
-                onClick={saveAllData}
-                className="bg-onyx-500 hover:bg-onyx-600 text-brand-white font-bold py-3 px-6 rounded focus:outline-none focus:shadow-outline transition duration-300"
-              >
-                Save All Configuration
-              </button>
-
-              <button
-                onClick={generateJsonFile}
+                onClick={saveConfiguration}
                 disabled={isGenerating}
                 className={`bg-onyx-500 hover:bg-onyx-600 text-brand-white font-bold py-3 px-6 rounded focus:outline-none focus:shadow-outline transition duration-300 ${
                   isGenerating ? "opacity-70 cursor-not-allowed" : ""
                 }`}
               >
-                {isGenerating ? "Generating..." : "Generate Encrypted File"}
+                {isGenerating ? "Saving..." : "Save Configuration"}
               </button>
 
               {generationResult && (

@@ -94,7 +94,7 @@ pub async fn encrypt_json(
             // Default path - use downloads directory
             match dirs::download_dir() {
                 Some(mut path) => {
-                    path.push("config.bin");
+                    path.push("config");
                     path.to_string_lossy().to_string()
                 }
                 None => {
@@ -316,4 +316,135 @@ fn save_encrypted_data(data: &[u8], file_path: &str) -> Result<(), String> {
 
     // Write data to file
     fs::write(file_path, data).map_err(|e| format!("Failed to write file: {}", e))
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DecryptionResult {
+    success: bool,
+    message: String,
+    json_data: String,
+}
+
+#[tauri::command]
+pub async fn decrypt_json(
+    _app_handle: AppHandle,
+    file_path: Option<String>,
+    char_key: Option<String>,
+    username: Option<String>,
+) -> Result<DecryptionResult, String> {
+    // Parse char_key or use default "T"
+    let char_key = char_key.unwrap_or_else(|| "T".to_string());
+    let char_key = char_key.chars().next().unwrap_or('T');
+
+    // Get computer info for key generation
+    let computer_info = get_computer_info();
+
+    // Generate key and IV
+    let key = get_key(32, &computer_info, char_key);
+    let iv = get_key(16, &computer_info, char_key);
+
+    // Determine input path
+    let input_path = match file_path {
+        Some(path) => path,
+        None => {
+            // Check if username is provided and use it to construct the path
+            if let Some(user) = username {
+                match dirs::download_dir() {
+                    Some(mut path) => {
+                        path.push(format!("config-{}", user));
+                        path.to_string_lossy().to_string()
+                    }
+                    None => {
+                        // Fallback to config dir
+                        match dirs::config_dir() {
+                            Some(mut path) => {
+                                path.push("Btic");
+                                path.push("ConfigConnectorTickelia");
+                                path.push(format!("config-{}", user));
+                                path.to_string_lossy().to_string()
+                            }
+                            None => format!("config-{}", user),
+                        }
+                    }
+                }
+            } else {
+                // Default path without username
+                match dirs::download_dir() {
+                    Some(mut path) => {
+                        path.push("config");
+                        path.to_string_lossy().to_string()
+                    }
+                    None => {
+                        // Fallback to config dir
+                        match dirs::config_dir() {
+                            Some(mut path) => {
+                                path.push("Btic");
+                                path.push("ConfigConnectorTickelia");
+                                path.push("config");
+                                path.to_string_lossy().to_string()
+                            }
+                            None => "config".to_string(),
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    // Read the encrypted file
+    let encrypted_data = match fs::read(&input_path) {
+        Ok(data) => data,
+        Err(e) => return Err(format!("Failed to read file: {}", e)),
+    };
+
+    // Decrypt the data
+    let decrypted_data = match decrypt_data(&encrypted_data, &key, &iv) {
+        Ok(data) => data,
+        Err(e) => return Err(format!("Decryption error: {}", e)),
+    };
+
+    // Convert decrypted bytes to string
+    match String::from_utf8(decrypted_data) {
+        Ok(json_string) => Ok(DecryptionResult {
+            success: true,
+            message: "Decryption successful".to_string(),
+            json_data: json_string,
+        }),
+        Err(e) => Err(format!("Failed to convert decrypted data to string: {}", e)),
+    }
+}
+
+#[tauri::command]
+pub async fn config_exists(_app_handle: AppHandle, username: String) -> Result<bool, String> {
+    // Check in downloads directory first
+    let download_path = match dirs::download_dir() {
+        Some(mut path) => {
+            path.push(format!("config-{}", username));
+            if path.exists() {
+                return Ok(true);
+            }
+            path
+        }
+        None => Path::new(&format!("config-{}", username)).to_path_buf(),
+    };
+
+    // Then check in config directory
+    let config_path = match dirs::config_dir() {
+        Some(mut path) => {
+            path.push("Btic");
+            path.push("ConfigConnectorTickelia");
+            path.push(format!("config-{}", username));
+            if path.exists() {
+                return Ok(true);
+            }
+            path
+        }
+        None => Path::new(&format!("config-{}", username)).to_path_buf(),
+    };
+
+    // Finally check in current directory
+    let current_path_string = format!("config-{}", username);
+    let current_path = Path::new(&current_path_string);
+
+    Ok(download_path.exists() || config_path.exists() || current_path.exists())
 }
