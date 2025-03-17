@@ -4,7 +4,7 @@ import Bitrix24Config from "./Bitrix24Config";
 import Companies from "./Companies";
 import { invoke } from "@tauri-apps/api/core";
 
-function Dashboard({ user, token, config, updateConfig, onLogout }) {
+function Dashboard({ user, token, config, configFromStorage, updateConfig, onLogout }) {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState(null);
@@ -165,6 +165,29 @@ function Dashboard({ user, token, config, updateConfig, onLogout }) {
                 <h3 className="text-lg font-semibold mb-2">Your Profile</h3>
                 <p>User Type: {user.userType || "Standard"}</p>
                 {/* Display other relevant user information here */}
+              </div>
+            )}
+
+            {configFromStorage && (
+              <div className="bg-green-100 border border-green-400 text-green-700 p-4 rounded-lg max-w-lg w-full">
+                <div className="flex items-center">
+                  <svg
+                    className="h-5 w-5 mr-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  <span>
+                    Configuration successfully loaded from your saved settings.
+                  </span>
+                </div>
               </div>
             )}
 

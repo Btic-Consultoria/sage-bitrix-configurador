@@ -9,6 +9,7 @@ function App() {
   const [config, setConfig] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
+  const [configFromStorage, setConfigFromStorage] = useState(false);
 
   useEffect(() => {
     setIsLoading(false);
@@ -19,6 +20,10 @@ function App() {
     // Set user and auth info
     setToken(authToken);
     setUser(userData);
+
+    // Set flag for whether config was loaded from storage
+    const configLoaded = !!initialConfig;
+    setConfigFromStorage(configLoaded);
 
     // Set initial config from decrypted file or empty defaults
     setConfig(
@@ -83,6 +88,7 @@ function App() {
             user={user}
             token={token}
             config={config}
+            configFromStorage={configFromStorage}
             updateConfig={updateConfig}
             onLogout={requestLogout}
           />

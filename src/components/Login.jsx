@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 // Set to true to enable development mode
@@ -13,48 +13,6 @@ function Login({ onLogin }) {
   const [isFirstLogin, setIsFirstLogin] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [configExists, setConfigExists] = useState(false);
-  const usernameTimeoutRef = useRef(null);
-
-  // Add a check for config existence when username changes
-  const checkConfigExists = async (username) => {
-    if (!username.trim()) {
-      setConfigExists(false);
-      return;
-    }
-
-    try {
-      const exists = await invoke("config_exists", { username });
-      setConfigExists(exists);
-    } catch (error) {
-      console.warn("Error checking for config:", error);
-      setConfigExists(false);
-    }
-  };
-
-  // Handle username change with debounce for config check
-  const handleUsernameChange = (e) => {
-    const newUsername = e.target.value;
-    setUsername(newUsername);
-
-    // Debounce the config check to avoid too many API calls
-    if (usernameTimeoutRef.current) {
-      clearTimeout(usernameTimeoutRef.current);
-    }
-
-    usernameTimeoutRef.current = setTimeout(() => {
-      checkConfigExists(newUsername);
-    }, 500); // Wait 500ms after typing stops
-  };
-
-  // Clean up timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (usernameTimeoutRef.current) {
-        clearTimeout(usernameTimeoutRef.current);
-      }
-    };
-  }, []);
 
   // Function to try loading existing configuration
   const tryLoadConfig = async (userData, token) => {
@@ -334,30 +292,9 @@ function Login({ onLogin }) {
               className="shadow appearance-none border rounded w-full py-2 px-3 text-onyx-700 leading-tight focus:outline-none focus:shadow-outline"
               placeholder="Enter your username"
               value={username}
-              onChange={handleUsernameChange} // Use the new handler
+              onChange={(e) => setUsername(e.target.value)}
               disabled={isLoading}
             />
-            {configExists && (
-              <div className="mt-1 text-sm text-green-600">
-                <span className="flex items-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 mr-1"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  Existing configuration found for this username
-                </span>
-              </div>
-            )}
           </div>
 
           <div className="mb-6">
