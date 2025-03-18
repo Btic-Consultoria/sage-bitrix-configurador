@@ -21,7 +21,7 @@ function Login({ onLogin }) {
       const result = await invoke("decrypt_json", {
         file_path: null, // Use default path
         char_key: "T", // Use the default key
-        username: userData.username, // Pass username to find user-specific config
+        username: null, // No longer need the username for the path
       });
 
       if (result.success && result.json_data) {

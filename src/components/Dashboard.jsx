@@ -97,7 +97,7 @@ function Dashboard({ user, token, config, configFromStorage, updateConfig, onLog
       const jsonString = JSON.stringify(configJson, null, 4);
 
       // Define output path
-      const outputPath = `config-${user.username}`;
+      const outputPath = "config";
 
       // Call the Rust encryption function via Tauri
       const result = await invoke("encrypt_json", {

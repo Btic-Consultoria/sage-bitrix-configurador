@@ -75,41 +75,22 @@ pub async fn encrypt_json(
             if path_obj.is_absolute() {
                 path
             } else {
-                // If relative, use the downloads directory as the base
-                match dirs::download_dir() {
-                    Some(mut download_path) => {
-                        download_path.push(path);
-                        // Create directory if it doesn't exist
-                        if let Some(parent) = download_path.parent() {
-                            fs::create_dir_all(parent)
-                                .map_err(|e| format!("Failed to create directory: {}", e))?;
-                        }
-                        download_path.to_string_lossy().to_string()
-                    }
-                    None => path, // Fallback to the provided path if downloads dir isn't available
+                // If relative, use the ProgramData directory as the base
+                let mut config_path = get_config_dir();
+                config_path.push(path);
+                // Create directory if it doesn't exist
+                if let Some(parent) = config_path.parent() {
+                    fs::create_dir_all(parent)
+                        .map_err(|e| format!("Failed to create directory: {}", e))?;
                 }
+                config_path.to_string_lossy().to_string()
             }
         }
         None => {
-            // Default path - use downloads directory
-            match dirs::download_dir() {
-                Some(mut path) => {
-                    path.push("config");
-                    path.to_string_lossy().to_string()
-                }
-                None => {
-                    // Fallback to config dir
-                    match dirs::config_dir() {
-                        Some(mut path) => {
-                            path.push("Btic");
-                            path.push("ConfigConnectorTickelia");
-                            path.push("config");
-                            path.to_string_lossy().to_string()
-                        }
-                        None => "config".to_string(),
-                    }
-                }
-            }
+            // Default path - use ProgramData directory
+            let mut config_path = get_config_dir();
+            config_path.push("config");
+            config_path.to_string_lossy().to_string()
         }
     };
 
@@ -318,6 +299,12 @@ fn save_encrypted_data(data: &[u8], file_path: &str) -> Result<(), String> {
     fs::write(file_path, data).map_err(|e| format!("Failed to write file: {}", e))
 }
 
+// Helper function to get the standard configuration directory path
+fn get_config_dir() -> std::path::PathBuf {
+    // Direct hardcoded path to C:\ProgramData\Btic\ConfigConnectorBitrix
+    std::path::PathBuf::from("C:\\ProgramData\\Btic\\ConfigConnectorBitrix")
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DecryptionResult {
     success: bool,
@@ -330,7 +317,7 @@ pub async fn decrypt_json(
     _app_handle: AppHandle,
     file_path: Option<String>,
     char_key: Option<String>,
-    username: Option<String>,
+    _username: Option<String>,
 ) -> Result<DecryptionResult, String> {
     // Parse char_key or use default "T"
     let char_key = char_key.unwrap_or_else(|| "T".to_string());
@@ -347,47 +334,10 @@ pub async fn decrypt_json(
     let input_path = match file_path {
         Some(path) => path,
         None => {
-            // Check if username is provided and use it to construct the path
-            if let Some(user) = username {
-                match dirs::download_dir() {
-                    Some(mut path) => {
-                        path.push(format!("config-{}", user));
-                        path.to_string_lossy().to_string()
-                    }
-                    None => {
-                        // Fallback to config dir
-                        match dirs::config_dir() {
-                            Some(mut path) => {
-                                path.push("Btic");
-                                path.push("ConfigConnectorTickelia");
-                                path.push(format!("config-{}", user));
-                                path.to_string_lossy().to_string()
-                            }
-                            None => format!("config-{}", user),
-                        }
-                    }
-                }
-            } else {
-                // Default path without username
-                match dirs::download_dir() {
-                    Some(mut path) => {
-                        path.push("config");
-                        path.to_string_lossy().to_string()
-                    }
-                    None => {
-                        // Fallback to config dir
-                        match dirs::config_dir() {
-                            Some(mut path) => {
-                                path.push("Btic");
-                                path.push("ConfigConnectorTickelia");
-                                path.push("config");
-                                path.to_string_lossy().to_string()
-                            }
-                            None => "config".to_string(),
-                        }
-                    }
-                }
-            }
+            // Use the standard ProgramData directory
+            let mut config_path = get_config_dir();
+            config_path.push("config");
+            config_path.to_string_lossy().to_string()
         }
     };
 
@@ -415,36 +365,10 @@ pub async fn decrypt_json(
 }
 
 #[tauri::command]
-pub async fn config_exists(_app_handle: AppHandle, username: String) -> Result<bool, String> {
-    // Check in downloads directory first
-    let download_path = match dirs::download_dir() {
-        Some(mut path) => {
-            path.push(format!("config-{}", username));
-            if path.exists() {
-                return Ok(true);
-            }
-            path
-        }
-        None => Path::new(&format!("config-{}", username)).to_path_buf(),
-    };
+pub async fn config_exists(_app_handle: AppHandle, _username: String) -> Result<bool, String> {
+    // Check in the ProgramData directory
+    let mut config_path = get_config_dir();
+    config_path.push("config");
 
-    // Then check in config directory
-    let config_path = match dirs::config_dir() {
-        Some(mut path) => {
-            path.push("Btic");
-            path.push("ConfigConnectorTickelia");
-            path.push(format!("config-{}", username));
-            if path.exists() {
-                return Ok(true);
-            }
-            path
-        }
-        None => Path::new(&format!("config-{}", username)).to_path_buf(),
-    };
-
-    // Finally check in current directory
-    let current_path_string = format!("config-{}", username);
-    let current_path = Path::new(&current_path_string);
-
-    Ok(download_path.exists() || config_path.exists() || current_path.exists())
+    Ok(config_path.exists())
 }
