@@ -4,11 +4,21 @@ import Bitrix24Config from "./Bitrix24Config";
 import Companies from "./Companies";
 import { invoke } from "@tauri-apps/api/core";
 
-function Dashboard({ user, token, config, configFromStorage, updateConfig, onLogout }) {
+function Dashboard({
+  user,
+  token,
+  config,
+  configFromStorage,
+  updateConfig,
+  onLogout,
+}) {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState(null);
   const [localConfig, setLocalConfig] = useState(config);
+
+  // Check if user is admin
+  const isAdmin = user.userType === "admin";
 
   // Update local config when props change
   useEffect(() => {
@@ -53,8 +63,8 @@ function Dashboard({ user, token, config, configFromStorage, updateConfig, onLog
       if (!localConfig?.database?.dbPassword)
         missingFields.push("Database Password");
 
-      // Check Bitrix config
-      if (!localConfig?.bitrix24?.apiTenant)
+      // Check Bitrix config - only if user is admin
+      if (isAdmin && !localConfig?.bitrix24?.apiTenant)
         missingFields.push("Bitrix24 API Tenant");
 
       // Check if companies exist
@@ -84,20 +94,27 @@ function Dashboard({ user, token, config, configFromStorage, updateConfig, onLog
           DB_Password: localConfig.database.dbPassword,
           IdLlicencia: localConfig.database.license,
         },
-        Bitrix24: {
-          API_Tenant: localConfig.bitrix24.apiTenant,
-        },
+        Bitrix24: isAdmin
+          ? {
+              API_Tenant: localConfig.bitrix24.apiTenant,
+            }
+          : null,
         Empresas: localConfig.companies.map((company) => ({
           EmpresaBitrix: company.bitrixCompany,
           EmpresaSage: company.sageCompanyCode,
         })),
       };
 
+      // Remove null properties
+      if (!configJson.Bitrix24) {
+        delete configJson.Bitrix24;
+      }
+
       // Convert to JSON string
       const jsonString = JSON.stringify(configJson, null, 4);
 
       // Define output path
-      const outputPath = "config";
+      const outputPath = `config-${user.username}`;
 
       // Call the Rust encryption function via Tauri
       const result = await invoke("encrypt_json", {
@@ -126,6 +143,12 @@ function Dashboard({ user, token, config, configFromStorage, updateConfig, onLog
 
   // Render the appropriate content based on active section
   const renderContent = () => {
+    // If user is not admin and trying to access bitrix24 section, redirect to dashboard
+    if (activeSection === "bitrix24" && !isAdmin) {
+      setActiveSection("dashboard");
+      return renderContent(); // Recursively call to render dashboard content
+    }
+
     switch (activeSection) {
       case "database":
         return (
@@ -164,6 +187,7 @@ function Dashboard({ user, token, config, configFromStorage, updateConfig, onLog
               <div className="bg-onyx-100 p-4 rounded-lg max-w-lg w-full">
                 <h3 className="text-lg font-semibold mb-2">Your Profile</h3>
                 <p>User Type: {user.userType || "Standard"}</p>
+                <p>Company: {user.company || "N/A"}</p>
                 {/* Display other relevant user information here */}
               </div>
             )}
@@ -198,12 +222,14 @@ function Dashboard({ user, token, config, configFromStorage, updateConfig, onLog
                 icon="💾"
                 onClick={() => setActiveSection("database")}
               />
-              <ConfigCard
-                title="Bitrix24 Configuration"
-                description="Configure Bitrix24 CRM integration settings"
-                icon="🔌"
-                onClick={() => setActiveSection("bitrix24")}
-              />
+              {isAdmin && (
+                <ConfigCard
+                  title="Bitrix24 Configuration"
+                  description="Configure Bitrix24 CRM integration settings"
+                  icon="🔌"
+                  onClick={() => setActiveSection("bitrix24")}
+                />
+              )}
               <ConfigCard
                 title="Company Mappings"
                 description="Map Bitrix24 companies to Sage company codes"
@@ -279,12 +305,14 @@ function Dashboard({ user, token, config, configFromStorage, updateConfig, onLog
             >
               Database
             </NavLink>
-            <NavLink
-              active={activeSection === "bitrix24"}
-              onClick={() => setActiveSection("bitrix24")}
-            >
-              Bitrix24
-            </NavLink>
+            {isAdmin && (
+              <NavLink
+                active={activeSection === "bitrix24"}
+                onClick={() => setActiveSection("bitrix24")}
+              >
+                Bitrix24
+              </NavLink>
+            )}
             <NavLink
               active={activeSection === "companies"}
               onClick={() => setActiveSection("companies")}
