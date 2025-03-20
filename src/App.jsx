@@ -129,9 +129,10 @@ function App() {
         },
         bitrix24: {
           apiTenant: "",
+          packEmpresa: false,
         },
         companies: [],
-      }
+      },
     );
 
     setIsAuthenticated(true);

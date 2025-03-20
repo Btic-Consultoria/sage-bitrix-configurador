@@ -75,8 +75,8 @@ function Dashboard({
       if (missingFields.length > 0) {
         alert(
           `Please complete the following fields before saving the configuration:\n\n${missingFields.join(
-            "\n"
-          )}`
+            "\n",
+          )}`,
         );
         setIsGenerating(false);
         return;
@@ -97,6 +97,7 @@ function Dashboard({
         Bitrix24: isAdmin
           ? {
               API_Tenant: localConfig.bitrix24.apiTenant,
+              pack_empresa: localConfig.bitrix24.packEmpresa || false,
             }
           : null,
         Empresas: localConfig.companies.map((company) => ({
@@ -114,7 +115,7 @@ function Dashboard({
       const jsonString = JSON.stringify(configJson, null, 4);
 
       // Define output path
-      const outputPath = `config-${user.username}`;
+      const outputPath = `config`;
 
       // Call the Rust encryption function via Tauri
       const result = await invoke("encrypt_json", {

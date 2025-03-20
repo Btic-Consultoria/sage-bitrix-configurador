@@ -42,6 +42,7 @@ function Login({ onLogin }) {
           },
           bitrix24: {
             apiTenant: configData.Bitrix24?.API_Tenant || "",
+            packEmpresa: configData.Bitrix24?.pack_empresa || false,
           },
           companies:
             configData.Empresas?.map((e) => ({
@@ -112,7 +113,7 @@ function Login({ onLogin }) {
         // Try to load config first
         const configLoaded = await tryLoadConfig(
           mockUserData,
-          "dev-mode-mock-token-123"
+          "dev-mode-mock-token-123",
         );
         if (!configLoaded) {
           // If no config was loaded, just proceed with empty config
@@ -130,7 +131,7 @@ function Login({ onLogin }) {
 
       if (!loginResult.success) {
         setError(
-          loginResult.error || "Login failed. Please check your credentials."
+          loginResult.error || "Login failed. Please check your credentials.",
         );
         setIsLoading(false);
         return;

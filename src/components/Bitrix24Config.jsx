@@ -4,20 +4,25 @@ function Bitrix24Config({ config, updateConfig }) {
   const [formData, setFormData] = useState(
     config || {
       apiTenant: "",
-    }
+      packEmpresa: false,
+    },
   );
 
   // Update local state when props change
   useEffect(() => {
-    setFormData(config || { apiTenant: "" });
+    setFormData(config || { apiTenant: "", packEmpresa: false });
   }, [config]);
 
   // Handle input changes
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+
+    // Use checkerd for checkboxes, value for other inputs
+    const inputValue = type === "checkbox" ? checked : value;
+
     const updatedData = {
       ...formData,
-      [name]: value,
+      [name]: inputValue,
     };
 
     // Update local state
@@ -52,6 +57,27 @@ function Bitrix24Config({ config, updateConfig }) {
               placeholder="https://your-company.bitrix24.com"
             />
           </div>
+        </div>
+        <div className="mt-4">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="packEmpresa"
+              name="packEmpresa"
+              checked={formData.packEmpresa || false}
+              onChange={handleChange}
+              className="w-4 h-4 text-onyx-600 border-onyx-300 rounded focus:ring-onyx-500"
+            />
+            <label
+              htmlFor="packEmpresa"
+              className="ml-2 block text-onyx-600 text-sm font-medium"
+            >
+              Pack Empresa
+            </label>
+          </div>
+          <p className="mt-1 text-sm text-onyx-500">
+            Marcar si el cliente ha contratado el pack Empresa
+          </p>
         </div>
       </div>
     </div>
