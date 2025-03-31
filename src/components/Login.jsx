@@ -15,6 +15,8 @@ function Login({ onLogin }) {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   // Function to try loading existing configuration
+  // In the Login.jsx file, update the tryLoadConfig function:
+
   const tryLoadConfig = async (userData, token) => {
     try {
       // Attempt to decrypt any existing config file
@@ -31,6 +33,7 @@ function Login({ onLogin }) {
 
         // Map the data to our application structure
         const appConfig = {
+          clientCode: configData.CodigoCliente || userData.username,
           database: {
             dbHost: configData.DB?.DB_Host || "",
             dbHostSage: configData.DB?.DB_Host_Sage || "",
@@ -113,7 +116,7 @@ function Login({ onLogin }) {
         // Try to load config first
         const configLoaded = await tryLoadConfig(
           mockUserData,
-          "dev-mode-mock-token-123",
+          "dev-mode-mock-token-123"
         );
         if (!configLoaded) {
           // If no config was loaded, just proceed with empty config
@@ -131,7 +134,7 @@ function Login({ onLogin }) {
 
       if (!loginResult.success) {
         setError(
-          loginResult.error || "Login failed. Please check your credentials.",
+          loginResult.error || "Login failed. Please check your credentials."
         );
         setIsLoading(false);
         return;

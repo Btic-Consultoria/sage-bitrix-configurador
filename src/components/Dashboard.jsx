@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import DatabaseConfig from "./DatabaseConfig";
 import Bitrix24Config from "./Bitrix24Config";
 import Companies from "./Companies";
+import GeneralSettings from "./GeneralSettings"; // Import the new component
 import { invoke } from "@tauri-apps/api/core";
 
 function Dashboard({
@@ -15,15 +16,22 @@ function Dashboard({
   const [activeSection, setActiveSection] = useState("dashboard");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState(null);
-  const [localConfig, setLocalConfig] = useState(config);
+  const [localConfig, setLocalConfig] = useState({
+    ...config,
+    // Set default clientCode to username if not specified
+    clientCode: config?.clientCode || user.username,
+  });
 
   // Check if user is admin
   const isAdmin = user.userType === "admin";
 
   // Update local config when props change
   useEffect(() => {
-    setLocalConfig(config);
-  }, [config]);
+    setLocalConfig({
+      ...config,
+      clientCode: config?.clientCode || user.username,
+    });
+  }, [config, user.username]);
 
   // Handle configuration updates
   const handleUpdateConfig = (section, data) => {
@@ -32,6 +40,12 @@ function Dashboard({
     if (section === "companies") {
       // For companies, directly update the array instead of nesting it
       newConfig.companies = data.companies || data;
+    } else if (section === "general") {
+      // For general settings, update top-level properties
+      newConfig = {
+        ...newConfig,
+        ...data,
+      };
     } else {
       // For other sections, merge with existing data
       newConfig[section] = {
@@ -71,6 +85,9 @@ function Dashboard({
       if (!localConfig?.companies?.length)
         missingFields.push("Company Mappings");
 
+      // Check client code
+      if (!localConfig?.clientCode) missingFields.push("Client Code");
+
       // If any fields are missing, alert the user
       if (missingFields.length > 0) {
         alert(
@@ -84,7 +101,7 @@ function Dashboard({
 
       // Map configuration to expected JSON structure
       const configJson = {
-        CodigoCliente: user.username,
+        CodigoCliente: localConfig.clientCode || user.username, // Use custom client code or fallback to username
         DB: {
           DB_Host: localConfig.database.dbHost,
           DB_Host_Sage: localConfig.database.dbHostSage,
@@ -97,7 +114,7 @@ function Dashboard({
         Bitrix24: isAdmin
           ? {
               API_Tenant: localConfig.bitrix24.apiTenant,
-              pack_empresa: localConfig.bitrix24.packEmpresa || false,
+              pack_empresa: Boolean(localConfig.bitrix24.packEmpresa),
             }
           : null,
         Empresas: localConfig.companies.map((company) => ({
@@ -140,6 +157,10 @@ function Dashboard({
     } finally {
       setIsGenerating(false);
     }
+
+    console.log("CurrentlocalConfig:", JSON.stringify(localConfig, null, 2));
+    console.log("Generating configJson...");
+    console.log("Generated configJson:", JSON.stringify(configJson, null, 2));
   };
 
   // Render the appropriate content based on active section
@@ -151,6 +172,13 @@ function Dashboard({
     }
 
     switch (activeSection) {
+      case "general":
+        return (
+          <GeneralSettings
+            config={localConfig}
+            updateConfig={(data) => handleUpdateConfig("general", data)}
+          />
+        );
       case "database":
         return (
           <DatabaseConfig
@@ -217,6 +245,12 @@ function Dashboard({
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
+              <ConfigCard
+                title="General Settings"
+                description="Configure client code and general settings"
+                icon="⚙️"
+                onClick={() => setActiveSection("general")}
+              />
               <ConfigCard
                 title="Database Configuration"
                 description="Set up Sage 200c database connection details"
@@ -299,6 +333,12 @@ function Dashboard({
               onClick={() => setActiveSection("dashboard")}
             >
               Dashboard
+            </NavLink>
+            <NavLink
+              active={activeSection === "general"}
+              onClick={() => setActiveSection("general")}
+            >
+              General
             </NavLink>
             <NavLink
               active={activeSection === "database"}
