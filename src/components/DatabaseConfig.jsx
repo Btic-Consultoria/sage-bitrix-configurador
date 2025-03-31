@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 function DatabaseConfig({ config, updateConfig }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState(config);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -28,7 +30,7 @@ function DatabaseConfig({ config, updateConfig }) {
     <div className="max-w-4xl mx-auto">
       <div className="bg-brand-white shadow-md rounded-lg p-6">
         <h2 className="text-2xl font-bold mb-6 text-onyx-600">
-          Database Configuration
+          {t("database.title")}
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -38,7 +40,7 @@ function DatabaseConfig({ config, updateConfig }) {
               htmlFor="dbHost"
               className="block text-onyx-600 text-sm font-bold mb-2"
             >
-              DB Host
+              {t("database.dbHost")}
             </label>
             <input
               type="text"
@@ -57,7 +59,7 @@ function DatabaseConfig({ config, updateConfig }) {
               htmlFor="dbHostSage"
               className="block text-onyx-600 text-sm font-bold mb-2"
             >
-              DB Host Sage
+              {t("database.dbHostSage")}
             </label>
             <input
               type="text"
@@ -76,7 +78,7 @@ function DatabaseConfig({ config, updateConfig }) {
               htmlFor="dbPort"
               className="block text-onyx-600 text-sm font-bold mb-2"
             >
-              DB Port
+              {t("database.dbPort")}
             </label>
             <input
               type="text"
@@ -95,7 +97,7 @@ function DatabaseConfig({ config, updateConfig }) {
               htmlFor="dbDatabase"
               className="block text-onyx-600 text-sm font-bold mb-2"
             >
-              DB Database
+              {t("database.dbDatabase")}
             </label>
             <input
               type="text"
@@ -114,7 +116,7 @@ function DatabaseConfig({ config, updateConfig }) {
               htmlFor="dbUsername"
               className="block text-onyx-600 text-sm font-bold mb-2"
             >
-              DB Username
+              {t("database.dbUsername")}
             </label>
             <input
               type="text"
@@ -133,7 +135,7 @@ function DatabaseConfig({ config, updateConfig }) {
               htmlFor="dbPassword"
               className="block text-onyx-600 text-sm font-bold mb-2"
             >
-              DB Password
+              {t("database.dbPassword")}
             </label>
             <div className="relative">
               <input
@@ -143,14 +145,14 @@ function DatabaseConfig({ config, updateConfig }) {
                 value={formData.dbPassword}
                 onChange={handleChange}
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-onyx-700 leading-tight focus:outline-none focus:shadow-outline"
-                placeholder="Enter database password"
+                placeholder={t("database.dbPassword")}
               />
               <button
                 type="button"
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5"
                 onClick={() => setShowPassword(!showPassword)}
               >
-                {showPassword ? "Hide" : "Show"}
+                {showPassword ? t("database.hide") : t("database.show")}
               </button>
             </div>
           </div>
@@ -161,7 +163,7 @@ function DatabaseConfig({ config, updateConfig }) {
               htmlFor="license"
               className="block text-onyx-600 text-sm font-bold mb-2"
             >
-              License
+              {t("database.license")}
             </label>
             <input
               type="text"
@@ -170,7 +172,7 @@ function DatabaseConfig({ config, updateConfig }) {
               value={formData.license}
               onChange={handleChange}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-onyx-700 leading-tight focus:outline-none focus:shadow-outline"
-              placeholder="Enter license key"
+              placeholder={t("database.license")}
             />
           </div>
         </div>

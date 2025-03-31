@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 function Bitrix24Config({ config, updateConfig }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState(
     config || {
       apiTenant: "",
       packEmpresa: false,
-    },
+    }
   );
 
   // Update local state when props change
@@ -17,7 +19,7 @@ function Bitrix24Config({ config, updateConfig }) {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
-    // Use checkerd for checkboxes, value for other inputs
+    // Use checked for checkboxes, value for other inputs
     const inputValue = type === "checkbox" ? checked : value;
 
     const updatedData = {
@@ -36,7 +38,7 @@ function Bitrix24Config({ config, updateConfig }) {
     <div className="max-w-4xl mx-auto">
       <div className="bg-brand-white shadow-md rounded-lg p-6">
         <h2 className="text-2xl font-bold mb-6 text-onyx-600">
-          Bitrix24 Configuration
+          {t("bitrix24.title")}
         </h2>
 
         <div className="grid grid-cols-1 gap-6">
@@ -45,7 +47,7 @@ function Bitrix24Config({ config, updateConfig }) {
               htmlFor="apiTenant"
               className="block text-onyx-600 text-sm font-bold mb-2"
             >
-              API Tenant
+              {t("bitrix24.apiTenant")}
             </label>
             <input
               type="text"
@@ -72,11 +74,11 @@ function Bitrix24Config({ config, updateConfig }) {
               htmlFor="packEmpresa"
               className="ml-2 block text-onyx-600 text-sm font-medium"
             >
-              Pack Empresa
+              {t("bitrix24.packEmpresa")}
             </label>
           </div>
           <p className="mt-1 text-sm text-onyx-500">
-            Marcar si el cliente ha contratado el pack Empresa
+            {t("bitrix24.packEmpresaHelp")}
           </p>
         </div>
       </div>

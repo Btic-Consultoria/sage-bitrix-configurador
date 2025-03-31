@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next"; // Add this import
 import DatabaseConfig from "./DatabaseConfig";
 import Bitrix24Config from "./Bitrix24Config";
 import Companies from "./Companies";
-import GeneralSettings from "./GeneralSettings"; // Import the new component
+import GeneralSettings from "./GeneralSettings";
+import LanguageSwitcher from "./LanguageSwitcher"; // Add this import
 import { invoke } from "@tauri-apps/api/core";
 
 function Dashboard({
@@ -13,6 +15,7 @@ function Dashboard({
   updateConfig,
   onLogout,
 }) {
+  const { t } = useTranslation(); // Add this hook
   const [activeSection, setActiveSection] = useState("dashboard");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState(null);
@@ -69,32 +72,29 @@ function Dashboard({
       const missingFields = [];
 
       // Check database config
-      if (!localConfig?.database?.dbHost) missingFields.push("Database Host");
+      if (!localConfig?.database?.dbHost)
+        missingFields.push(t("database.dbHost"));
       if (!localConfig?.database?.dbDatabase)
-        missingFields.push("Database Name");
+        missingFields.push(t("database.dbDatabase"));
       if (!localConfig?.database?.dbUsername)
-        missingFields.push("Database Username");
+        missingFields.push(t("database.dbUsername"));
       if (!localConfig?.database?.dbPassword)
-        missingFields.push("Database Password");
+        missingFields.push(t("database.dbPassword"));
 
       // Check Bitrix config - only if user is admin
       if (isAdmin && !localConfig?.bitrix24?.apiTenant)
-        missingFields.push("Bitrix24 API Tenant");
+        missingFields.push(t("bitrix24.apiTenant"));
 
       // Check if companies exist
       if (!localConfig?.companies?.length)
-        missingFields.push("Company Mappings");
+        missingFields.push(t("dashboard.companies"));
 
       // Check client code
-      if (!localConfig?.clientCode) missingFields.push("Client Code");
+      if (!localConfig?.clientCode) missingFields.push(t("general.clientCode"));
 
       // If any fields are missing, alert the user
       if (missingFields.length > 0) {
-        alert(
-          `Please complete the following fields before saving the configuration:\n\n${missingFields.join(
-            "\n",
-          )}`,
-        );
+        alert(`${t("dialogs.missingFields")}\n\n${missingFields.join("\n")}`);
         setIsGenerating(false);
         return;
       }
@@ -157,10 +157,6 @@ function Dashboard({
     } finally {
       setIsGenerating(false);
     }
-
-    console.log("CurrentlocalConfig:", JSON.stringify(localConfig, null, 2));
-    console.log("Generating configJson...");
-    console.log("Generated configJson:", JSON.stringify(configJson, null, 2));
   };
 
   // Render the appropriate content based on active section
@@ -204,20 +200,24 @@ function Dashboard({
         return (
           <div className="flex flex-col items-center space-y-8 py-8">
             <h2 className="text-2xl font-bold text-onyx-600">
-              Welcome to Sage-Bitrix Configurator, {user.username}
+              {t("app.welcome", { username: user.username })}
             </h2>
             <p className="text-onyx-500 max-w-lg text-center">
-              This tool helps you configure the connection between Sage 200c and
-              Bitrix24 CRM. Use the options below to set up your configuration.
+              {t("dashboard.welcome")}
             </p>
 
             {/* User profile information if available */}
             {user.profile && (
               <div className="bg-onyx-100 p-4 rounded-lg max-w-lg w-full">
-                <h3 className="text-lg font-semibold mb-2">Your Profile</h3>
-                <p>User Type: {user.userType || "Standard"}</p>
-                <p>Company: {user.company || "N/A"}</p>
-                {/* Display other relevant user information here */}
+                <h3 className="text-lg font-semibold mb-2">
+                  {t("dashboard.yourProfile")}
+                </h3>
+                <p>
+                  {t("dashboard.userType")}: {user.userType || "Standard"}
+                </p>
+                <p>
+                  {t("dashboard.company")}: {user.company || "N/A"}
+                </p>
               </div>
             )}
 
@@ -237,37 +237,35 @@ function Dashboard({
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
-                  <span>
-                    Configuration successfully loaded from your saved settings.
-                  </span>
+                  <span>{t("dashboard.configLoaded")}</span>
                 </div>
               </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
               <ConfigCard
-                title="General Settings"
-                description="Configure client code and general settings"
+                title={t("general.title")}
+                description={t("general.clientCodeHelp")}
                 icon="⚙️"
                 onClick={() => setActiveSection("general")}
               />
               <ConfigCard
-                title="Database Configuration"
-                description="Set up Sage 200c database connection details"
+                title={t("database.title")}
+                description={t("database.dbHost")}
                 icon="💾"
                 onClick={() => setActiveSection("database")}
               />
               {isAdmin && (
                 <ConfigCard
-                  title="Bitrix24 Configuration"
-                  description="Configure Bitrix24 CRM integration settings"
+                  title={t("bitrix24.title")}
+                  description={t("bitrix24.apiTenant")}
                   icon="🔌"
                   onClick={() => setActiveSection("bitrix24")}
                 />
               )}
               <ConfigCard
-                title="Company Mappings"
-                description="Map Bitrix24 companies to Sage company codes"
+                title={t("companies.title")}
+                description={t("companies.addNewMapping")}
                 icon="🏢"
                 onClick={() => setActiveSection("companies")}
               />
@@ -281,7 +279,9 @@ function Dashboard({
                   isGenerating ? "opacity-70 cursor-not-allowed" : ""
                 }`}
               >
-                {isGenerating ? "Saving..." : "Save Configuration"}
+                {isGenerating
+                  ? t("dashboard.saving")
+                  : t("dashboard.saveConfiguration")}
               </button>
 
               {generationResult && (
@@ -295,7 +295,7 @@ function Dashboard({
                   <p>{generationResult.message}</p>
                   {generationResult.success && generationResult.filePath && (
                     <p className="mt-2">
-                      File saved to:{" "}
+                      {t("dashboard.fileSavedTo")}{" "}
                       <span className="font-mono bg-onyx-100 px-2 py-1 rounded">
                         {generationResult.filePath}
                       </span>
@@ -316,15 +316,18 @@ function Dashboard({
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <img src="/btic-logo-black.svg" alt="BTC Logo" className="h-8" />
-            <h1 className="text-xl font-bold">Sage-Bitrix Configurator</h1>
+            <h1 className="text-xl font-bold">{t("app.title")}</h1>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="text-brand-white">Welcome, {user.username}</span>
+            <LanguageSwitcher />
+            <span className="text-brand-white">
+              {t("app.welcome", { username: user.username })}
+            </span>
             <button
               onClick={onLogout}
               className="bg-onyx-600 hover:bg-onyx-700 text-brand-white px-3 py-1 rounded transition duration-300"
             >
-              Logout
+              {t("dialogs.logout")}
             </button>
           </div>
           <nav className="hidden md:flex space-x-4">
@@ -332,33 +335,33 @@ function Dashboard({
               active={activeSection === "dashboard"}
               onClick={() => setActiveSection("dashboard")}
             >
-              Dashboard
+              {t("dashboard.dashboard")}
             </NavLink>
             <NavLink
               active={activeSection === "general"}
               onClick={() => setActiveSection("general")}
             >
-              General
+              {t("dashboard.general")}
             </NavLink>
             <NavLink
               active={activeSection === "database"}
               onClick={() => setActiveSection("database")}
             >
-              Database
+              {t("dashboard.database")}
             </NavLink>
             {isAdmin && (
               <NavLink
                 active={activeSection === "bitrix24"}
                 onClick={() => setActiveSection("bitrix24")}
               >
-                Bitrix24
+                {t("dashboard.bitrix24")}
               </NavLink>
             )}
             <NavLink
               active={activeSection === "companies"}
               onClick={() => setActiveSection("companies")}
             >
-              Companies
+              {t("dashboard.companies")}
             </NavLink>
           </nav>
         </div>
@@ -369,7 +372,7 @@ function Dashboard({
 
       {/* Footer */}
       <footer className="bg-onyx-200 p-4 text-center text-onyx-700 text-sm">
-        &copy;2025 Bussiness Tic Consultoria. All rights reserved.
+        {t("footer.copyright")}
       </footer>
     </div>
   );

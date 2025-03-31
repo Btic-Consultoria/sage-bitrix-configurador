@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
 
 function App() {
+  const { t } = useTranslation();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -132,7 +134,7 @@ function App() {
           packEmpresa: false,
         },
         companies: [],
-      },
+      }
     );
 
     setIsAuthenticated(true);
@@ -189,24 +191,23 @@ function App() {
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
                 <h3 className="text-lg font-bold mb-4 text-onyx-600">
-                  Confirm Logout
+                  {t("dialogs.confirmLogout")}
                 </h3>
                 <p className="mb-6 text-onyx-500">
-                  Have you saved your configuration data? Any unsaved changes
-                  will be lost.
+                  {t("dialogs.logoutWarning")}
                 </p>
                 <div className="flex justify-end space-x-4">
                   <button
                     onClick={cancelLogout}
                     className="px-4 py-2 border border-onyx-300 rounded-md text-onyx-600 hover:bg-onyx-100"
                   >
-                    Cancel
+                    {t("dialogs.cancel")}
                   </button>
                   <button
                     onClick={handleLogout}
                     className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                   >
-                    Logout
+                    {t("dialogs.logout")}
                   </button>
                 </div>
               </div>
@@ -218,24 +219,21 @@ function App() {
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
                 <h3 className="text-lg font-bold mb-4 text-onyx-600">
-                  Confirm Exit
+                  {t("dialogs.confirmExit")}
                 </h3>
-                <p className="mb-6 text-onyx-500">
-                  Are you sure you want to exit the application? Any unsaved
-                  changes will be lost.
-                </p>
+                <p className="mb-6 text-onyx-500">{t("dialogs.exitWarning")}</p>
                 <div className="flex justify-end space-x-4">
                   <button
                     onClick={handleCancelClose}
                     className="px-4 py-2 border border-onyx-300 rounded-md text-onyx-600 hover:bg-onyx-100"
                   >
-                    Cancel
+                    {t("dialogs.cancel")}
                   </button>
                   <button
                     onClick={handleConfirmClose}
                     className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                   >
-                    Exit
+                    {t("dialogs.exit")}
                   </button>
                 </div>
               </div>
@@ -251,23 +249,21 @@ function App() {
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
                 <h3 className="text-lg font-bold mb-4 text-onyx-600">
-                  Confirm Exit
+                  {t("dialogs.confirmExit")}
                 </h3>
-                <p className="mb-6 text-onyx-500">
-                  Are you sure you want to exit the application?
-                </p>
+                <p className="mb-6 text-onyx-500">{t("dialogs.exitWarning")}</p>
                 <div className="flex justify-end space-x-4">
                   <button
                     onClick={handleCancelClose}
                     className="px-4 py-2 border border-onyx-300 rounded-md text-onyx-600 hover:bg-onyx-100"
                   >
-                    Cancel
+                    {t("dialogs.cancel")}
                   </button>
                   <button
                     onClick={handleConfirmClose}
                     className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                   >
-                    Exit
+                    {t("dialogs.exit")}
                   </button>
                 </div>
               </div>

@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 // Set to true to enable development mode
 const DEV_MODE = false;
 
 function Login({ onLogin }) {
+  const { t, i18n } = useTranslation(); // Get i18n object to track language directly
   const logoPath = "/btic-logo-black.svg";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -13,9 +16,40 @@ function Login({ onLogin }) {
   const [isFirstLogin, setIsFirstLogin] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [currentLanguage, setCurrentLanguage] = useState(i18n.language);
 
-  // Function to try loading existing configuration
-  // In the Login.jsx file, update the tryLoadConfig function:
+  // Track language changes without side effects
+  useEffect(() => {
+    // Only update the tracked language
+    if (currentLanguage !== i18n.language) {
+      setCurrentLanguage(i18n.language);
+
+      // If there's an error message, translate it to the new language
+      // without clearing it or triggering any other behavior
+      if (error) {
+        // If the error is a known translation key, update it to the new language
+        if (error === t("auth.loginError", { lng: currentLanguage })) {
+          setError(t("auth.loginError"));
+        }
+        // Otherwise, leave the custom error message as is
+      }
+    }
+  }, [i18n.language, currentLanguage, t]);
+
+  // Add a flag to prevent automatic login during language changes
+  const isChangingLanguage = useRef(false);
+
+  useEffect(() => {
+    // When language changes, set the flag
+    isChangingLanguage.current = true;
+
+    // Reset the flag after a short delay
+    const timer = setTimeout(() => {
+      isChangingLanguage.current = false;
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [i18n.language]);
 
   const tryLoadConfig = async (userData, token) => {
     try {
@@ -66,11 +100,17 @@ function Login({ onLogin }) {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+
+    // Prevent login during language changes
+    if (isChangingLanguage.current) {
+      console.log("Ignoring login attempt during language change");
+      return;
+    }
 
     // Basic validation
     if (!username.trim() || !password.trim()) {
-      setError("Please enter both username and password");
+      setError(t("auth.loginError"));
       return;
     }
 
@@ -133,9 +173,7 @@ function Login({ onLogin }) {
       });
 
       if (!loginResult.success) {
-        setError(
-          loginResult.error || "Login failed. Please check your credentials."
-        );
+        setError(loginResult.error || t("auth.loginError"));
         setIsLoading(false);
         return;
       }
@@ -196,11 +234,17 @@ function Login({ onLogin }) {
             <div className="flex justify-center mb-4">
               <img src={logoPath} alt="BTC Logo" className="h-20 w-auto" />
             </div>
+
+            {/* Add the language switcher at the top */}
+            <div className="flex justify-center mb-4">
+              <LanguageSwitcher />
+            </div>
+
             <h2 className="text-2xl font-bold mb-2 text-center text-onyx-500">
-              First Login
+              {t("auth.firstLogin")}
             </h2>
             <p className="mb-6 text-center text-onyx-400">
-              Please set a new password for your account
+              {t("auth.setNewPassword")}
             </p>
 
             {error && (
@@ -214,13 +258,13 @@ function Login({ onLogin }) {
                 htmlFor="newPassword"
                 className="block text-onyx-600 text-sm font-bold mb-2"
               >
-                New Password
+                {t("auth.newPassword")}
               </label>
               <input
                 type="password"
                 id="newPassword"
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-onyx-700 leading-tight focus:outline-none focus:shadow-outline"
-                placeholder="Enter your new password"
+                placeholder={t("auth.newPassword")}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
               />
@@ -231,13 +275,13 @@ function Login({ onLogin }) {
                 htmlFor="confirmPassword"
                 className="block text-onyx-600 text-sm font-bold mb-2"
               >
-                Confirm Password
+                {t("auth.confirmPassword")}
               </label>
               <input
                 type="password"
                 id="confirmPassword"
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-onyx-700 leading-tight focus:outline-none focus:shadow-outline"
-                placeholder="Confirm your new password"
+                placeholder={t("auth.confirmPassword")}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
@@ -248,7 +292,7 @@ function Login({ onLogin }) {
                 type="submit"
                 className="bg-onyx-500 hover:bg-onyx-600 text-brand-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300"
               >
-                Set New Password
+                {t("auth.setNewPasswordButton")}
               </button>
             </div>
           </form>
@@ -273,8 +317,14 @@ function Login({ onLogin }) {
           <div className="flex justify-center mb-4">
             <img src={logoPath} alt="BTC Logo" className="h-20 w-auto" />
           </div>
+
+          {/* Add the language switcher at the top */}
+          <div className="flex justify-center mb-4">
+            <LanguageSwitcher />
+          </div>
+
           <h2 className="text-2xl font-bold mb-6 text-center text-onyx-500">
-            Sage-Bitrix Configurator
+            {t("app.title")}
           </h2>
 
           {error && (
@@ -288,13 +338,13 @@ function Login({ onLogin }) {
               htmlFor="username"
               className="block text-onyx-600 text-sm font-bold mb-2"
             >
-              Username
+              {t("auth.username")}
             </label>
             <input
               type="text"
               id="username"
               className="shadow appearance-none border rounded w-full py-2 px-3 text-onyx-700 leading-tight focus:outline-none focus:shadow-outline"
-              placeholder="Enter your username"
+              placeholder={t("auth.username")}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={isLoading}
@@ -306,7 +356,7 @@ function Login({ onLogin }) {
               htmlFor="password"
               className="block text-onyx-600 text-sm font-bold mb-2"
             >
-              Password
+              {t("auth.password")}
             </label>
             <input
               type="password"
@@ -314,7 +364,7 @@ function Login({ onLogin }) {
               className="shadow appearance-none border rounded w-full py-2 px-3 text-onyx-700 leading-tight focus:outline-none focus:shadow-outline"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              placeholder={t("auth.password")}
               disabled={isLoading}
             />
           </div>
@@ -327,13 +377,13 @@ function Login({ onLogin }) {
               }`}
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? t("auth.signingIn") : t("auth.signIn")}
             </button>
           </div>
         </form>
 
         <p className="text-center text-onyx-700 text-xs">
-          &copy;2025 Bussiness Tic Consultoria. All rights reserved.
+          {t("footer.copyright")}
         </p>
       </div>
     </div>
