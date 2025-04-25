@@ -9,8 +9,6 @@ use tauri::AppHandle;
 
 // Define the AES-CBC cipher with PKCS7 padding
 type Aes256CbcEnc = cbc::Encryptor<aes::Aes256>;
-// Keep for potential future use
-#[allow(dead_code)]
 type Aes256CbcDec = cbc::Decryptor<aes::Aes256>;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -23,35 +21,54 @@ pub struct EncryptionResult {
 // Command to encrypt JSON data
 #[tauri::command]
 pub async fn encrypt_json(
-    _app_handle: AppHandle, // Prefixed with underscore to indicate intentionally unused
+    _app_handle: AppHandle,
     json_data: String,
     output_path: Option<String>,
     char_key: Option<String>,
 ) -> Result<EncryptionResult, String> {
     // Parse char_key or use default "T"
     let char_key = char_key.unwrap_or_else(|| "T".to_string());
-    let char_key = char_key.chars().next().unwrap_or('T');
+    let char_key_char = char_key.chars().next().unwrap_or('T');
 
     // Get computer info for key generation
     let computer_info = get_computer_info();
     println!("Computer info for key generation: {}", computer_info);
 
+    // Get MAC and hostname for metadata
+    let mac_address = get_mac_for_metadata();
+    let hostname = get_hostname_for_metadata();
+
+    // Create metadata string
+    let metadata = format!(
+        "MAC={};HOST={};KEY_CHAR={};",
+        mac_address, hostname, char_key
+    );
+    let metadata_bytes = metadata.as_bytes();
+    let metadata_len = metadata_bytes.len() as u32;
+    let metadata_len_bytes = metadata_len.to_le_bytes();
+
+    println!(
+        "Metadata: {} (size: {} bytes)",
+        metadata,
+        metadata_bytes.len()
+    );
+
     // Generate key and IV
-    let key = get_key(32, &computer_info, char_key);
-    let iv = get_key(16, &computer_info, char_key);
+    let key = get_key(32, &computer_info, char_key_char);
+    let iv = get_key(16, &computer_info, char_key_char);
 
     // Show key info for debugging
-    let key_string = pad_with_char(&computer_info, 32, char_key);
-    let iv_string = pad_with_char(&computer_info, 16, char_key);
+    let key_string = pad_with_char(&computer_info, 32, char_key_char);
+    let iv_string = pad_with_char(&computer_info, 16, char_key_char);
     println!(
         "Full key string (with '{}' padding): {} (length: {})",
-        char_key,
+        char_key_char,
         key_string,
         key_string.len()
     );
     println!(
         "Full IV string (with '{}' padding): {} (length: {})",
-        char_key,
+        char_key_char,
         iv_string,
         iv_string.len()
     );
@@ -66,6 +83,14 @@ pub async fn encrypt_json(
     };
 
     println!("Encrypted data size: {} bytes", encrypted_data.len());
+
+    // Combine metadata length, metadata, and encrypted data
+    let mut final_data = Vec::with_capacity(4 + metadata_bytes.len() + encrypted_data.len());
+    final_data.extend_from_slice(&metadata_len_bytes);
+    final_data.extend_from_slice(metadata_bytes);
+    final_data.extend_from_slice(&encrypted_data);
+
+    println!("Final data size with metadata: {} bytes", final_data.len());
 
     // Determine output path
     let output_path = match output_path {
@@ -95,7 +120,7 @@ pub async fn encrypt_json(
     };
 
     // Save encrypted data to file
-    match save_encrypted_data(&encrypted_data, &output_path) {
+    match save_encrypted_data(&final_data, &output_path) {
         Ok(_) => {
             println!("Encrypted data saved to: {}", output_path);
             Ok(EncryptionResult {
@@ -108,8 +133,8 @@ pub async fn encrypt_json(
     }
 }
 
-// Function to get computer info with hardcoded MAC address
-fn get_computer_info() -> String {
+// Function to get MAC address for metadata
+fn get_mac_for_metadata() -> String {
     // We'll collect all available MAC addresses with their interface names
     let mut selected_mac = String::new();
 
@@ -198,14 +223,24 @@ fn get_computer_info() -> String {
         println!("Using hardcoded fallback MAC address: {}", selected_mac);
     }
 
-    // Get hostname the same way as before
-    let hostname = match hostname::get() {
+    selected_mac
+}
+
+// Function to get hostname for metadata
+fn get_hostname_for_metadata() -> String {
+    match hostname::get() {
         Ok(name) => name.to_string_lossy().into_owned(),
         Err(_) => "unknown".to_string(),
-    };
+    }
+}
+
+// Function to get computer info with hardcoded MAC address
+fn get_computer_info() -> String {
+    let mac = get_mac_for_metadata();
+    let hostname = get_hostname_for_metadata();
 
     // Combine MAC and hostname
-    let result = format!("{}{}", selected_mac, hostname);
+    let result = format!("{}{}", mac, hostname);
     println!("Raw computer info (before padding): {}", result);
     result
 }
@@ -270,9 +305,12 @@ fn encrypt_data(data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>, String> {
 }
 
 // Function to decrypt data using AES-CBC with PKCS7 padding
-// Kept for potential future use
-#[allow(dead_code)]
 fn decrypt_data(encrypted_data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>, String> {
+    // Print debug info
+    println!("Encrypted data length: {} bytes", encrypted_data.len());
+    println!("Key length: {} bytes", key.len());
+    println!("IV length: {} bytes", iv.len());
+
     // Create buffer for decrypted output (same size as input)
     let mut buffer = encrypted_data.to_vec();
 
@@ -319,17 +357,6 @@ pub async fn decrypt_json(
     char_key: Option<String>,
     _username: Option<String>,
 ) -> Result<DecryptionResult, String> {
-    // Parse char_key or use default "T"
-    let char_key = char_key.unwrap_or_else(|| "T".to_string());
-    let char_key = char_key.chars().next().unwrap_or('T');
-
-    // Get computer info for key generation
-    let computer_info = get_computer_info();
-
-    // Generate key and IV
-    let key = get_key(32, &computer_info, char_key);
-    let iv = get_key(16, &computer_info, char_key);
-
     // Determine input path
     let input_path = match file_path {
         Some(path) => path,
@@ -341,25 +368,107 @@ pub async fn decrypt_json(
         }
     };
 
+    println!("Attempting to decrypt file: {}", input_path);
+
     // Read the encrypted file
     let encrypted_data = match fs::read(&input_path) {
         Ok(data) => data,
         Err(e) => return Err(format!("Failed to read file: {}", e)),
     };
 
+    println!("Read {} bytes from file", encrypted_data.len());
+
+    // File must be at least 4 bytes (for metadata length)
+    if encrypted_data.len() < 4 {
+        return Err("File is too small to contain valid data".to_string());
+    }
+
+    // Extract metadata length (first 4 bytes)
+    let metadata_len = u32::from_le_bytes([
+        encrypted_data[0],
+        encrypted_data[1],
+        encrypted_data[2],
+        encrypted_data[3],
+    ]) as usize;
+
+    println!("Metadata length: {} bytes", metadata_len);
+
+    // Validate metadata length
+    if encrypted_data.len() < 4 + metadata_len {
+        return Err("File is too small to contain complete metadata".to_string());
+    }
+
+    // Extract metadata
+    let metadata_str = match String::from_utf8(encrypted_data[4..4 + metadata_len].to_vec()) {
+        Ok(s) => s,
+        Err(_) => return Err("Invalid metadata encoding".to_string()),
+    };
+
+    println!("Metadata: {}", metadata_str);
+
+    // Parse metadata to extract MAC address, hostname, and key char
+    let mut mac = String::new();
+    let mut hostname = String::new();
+    let mut key_char = char_key
+        .unwrap_or_else(|| "T".to_string())
+        .chars()
+        .next()
+        .unwrap_or('T');
+
+    for part in metadata_str.split(';') {
+        if let Some(mac_val) = part.strip_prefix("MAC=") {
+            mac = mac_val.to_string();
+        } else if let Some(host_val) = part.strip_prefix("HOST=") {
+            hostname = host_val.to_string();
+        } else if let Some(key_val) = part.strip_prefix("KEY_CHAR=") {
+            if !key_val.is_empty() {
+                key_char = key_val.chars().next().unwrap_or('T');
+            }
+        }
+    }
+
+    println!("Extracted MAC: {}", mac);
+    println!("Extracted hostname: {}", hostname);
+    println!("Using key_char: {}", key_char);
+
+    // Recreate the computer_info string that was used for encryption
+    let computer_info = format!("{}{}", mac, hostname);
+    println!("Using computer info for decryption: {}", computer_info);
+
+    // Generate the same key and IV
+    let key = get_key(32, &computer_info, key_char);
+    let iv = get_key(16, &computer_info, key_char);
+    println!(
+        "Generated key length: {}, IV length: {}",
+        key.len(),
+        iv.len()
+    );
+
+    // Get just the encrypted portion (after metadata)
+    let actual_encrypted_data = &encrypted_data[4 + metadata_len..];
+    println!(
+        "Actual encrypted data size: {} bytes",
+        actual_encrypted_data.len()
+    );
+
     // Decrypt the data
-    let decrypted_data = match decrypt_data(&encrypted_data, &key, &iv) {
+    let decrypted_data = match decrypt_data(actual_encrypted_data, &key, &iv) {
         Ok(data) => data,
         Err(e) => return Err(format!("Decryption error: {}", e)),
     };
 
+    println!("Decryption successful, got {} bytes", decrypted_data.len());
+
     // Convert decrypted bytes to string
     match String::from_utf8(decrypted_data) {
-        Ok(json_string) => Ok(DecryptionResult {
-            success: true,
-            message: "Decryption successful".to_string(),
-            json_data: json_string,
-        }),
+        Ok(json_string) => {
+            println!("Successfully converted decrypted data to JSON string");
+            Ok(DecryptionResult {
+                success: true,
+                message: "Decryption successful".to_string(),
+                json_data: json_string,
+            })
+        }
         Err(e) => Err(format!("Failed to convert decrypted data to string: {}", e)),
     }
 }
