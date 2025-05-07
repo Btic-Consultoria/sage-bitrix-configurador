@@ -3,9 +3,11 @@
 
 mod auth;
 mod encryption;
+mod service; // Added service module
 
 use auth::{get_user_profile, login_api};
 use encryption::{config_exists, decrypt_json, encrypt_json};
+use service::{check_service_status, start_service}; // Added service functions
 use serde_json::json;
 use std::process;
 use tauri::{Emitter, Manager, WindowEvent};
@@ -26,7 +28,9 @@ fn main() {
             login_api,
             get_user_profile,
             config_exists,
-            force_exit
+            force_exit,
+            check_service_status, // Added service command
+            start_service        // Added service command
         ])
         .setup(|app| {
             // Get the main window

@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next"; // Add this import
+import { useTranslation } from "react-i18next";
 import DatabaseConfig from "./DatabaseConfig";
 import Bitrix24Config from "./Bitrix24Config";
 import Companies from "./Companies";
 import GeneralSettings from "./GeneralSettings";
-import LanguageSwitcher from "./LanguageSwitcher"; // Add this import
+import LanguageSwitcher from "./LanguageSwitcher";
+import ServiceStatusIndicator from "./ServiceStatusIndicator";
 import { invoke } from "@tauri-apps/api/core";
 
 function Dashboard({
@@ -269,6 +270,13 @@ function Dashboard({
                 icon="🏢"
                 onClick={() => setActiveSection("companies")}
               />
+            </div>
+
+            <div className="mt-8">
+              <h3 className="text-xl font-semibold text-onyx-600 mb-4">
+                {t("dashboard.serviceStatus", "Service Status")}
+              </h3>
+              <ServiceStatusIndicator />
             </div>
 
             <div className="mt-8 flex flex-col items-center space-y-4">
