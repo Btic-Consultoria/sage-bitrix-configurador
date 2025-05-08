@@ -3,11 +3,11 @@
 
 mod auth;
 mod encryption;
-mod service; // Added service module
+mod service;
 
 use auth::{get_user_profile, login_api};
 use encryption::{config_exists, decrypt_json, encrypt_json};
-use service::{check_service_status, start_service}; // Added service functions
+use service::{check_service_status, start_service, echo_test}; // Added echo_test
 use serde_json::json;
 use std::process;
 use tauri::{Emitter, Manager, WindowEvent};
@@ -20,6 +20,8 @@ fn force_exit() {
 }
 
 fn main() {
+    println!("Starting application");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
@@ -29,10 +31,13 @@ fn main() {
             get_user_profile,
             config_exists,
             force_exit,
-            check_service_status, // Added service command
-            start_service        // Added service command
+            check_service_status,
+            start_service,
+            echo_test, // Added echo_test command
         ])
         .setup(|app| {
+            println!("Setup phase...");
+            
             // Get the main window
             let main_window = app.get_webview_window("main").unwrap();
 

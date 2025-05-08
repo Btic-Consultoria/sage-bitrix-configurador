@@ -5,7 +5,8 @@ import Bitrix24Config from "./Bitrix24Config";
 import Companies from "./Companies";
 import GeneralSettings from "./GeneralSettings";
 import LanguageSwitcher from "./LanguageSwitcher";
-import ServiceStatusIndicator from "./ServiceStatusIndicator";
+import SimpleServiceStatusIndicator from "./SimpleServiceStatusIndicator";
+import ServiceTestComponent from "./ServiceTestComponent";
 import { invoke } from "@tauri-apps/api/core";
 
 function Dashboard({
@@ -276,7 +277,10 @@ function Dashboard({
               <h3 className="text-xl font-semibold text-onyx-600 mb-4">
                 {t("dashboard.serviceStatus", "Service Status")}
               </h3>
-              <ServiceStatusIndicator />
+              <SimpleServiceStatusIndicator />
+              <div className="mt-4">
+                <ServiceTestComponent />
+              </div>
             </div>
 
             <div className="mt-8 flex flex-col items-center space-y-4">
