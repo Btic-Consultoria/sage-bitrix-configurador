@@ -7,7 +7,7 @@ mod service;
 
 use auth::{get_user_profile, login_api};
 use encryption::{config_exists, decrypt_json, encrypt_json};
-use service::{check_service_status, start_service, echo_test}; // Added echo_test
+use service::{check_service_status, start_service, echo_test, open_services_manager}; // Added open_services_manager
 use serde_json::json;
 use std::process;
 use tauri::{Emitter, Manager, WindowEvent};
@@ -33,7 +33,8 @@ fn main() {
             force_exit,
             check_service_status,
             start_service,
-            echo_test, // Added echo_test command
+            echo_test,
+            open_services_manager, // Added open_services_manager command
         ])
         .setup(|app| {
             println!("Setup phase...");

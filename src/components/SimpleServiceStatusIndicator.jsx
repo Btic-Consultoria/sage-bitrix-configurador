@@ -7,6 +7,7 @@ function SimpleServiceStatusIndicator() {
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [lastChecked, setLastChecked] = useState(null);
+  const [showAdminHelp, setShowAdminHelp] = useState(false);
   const [logs, setLogs] = useState([]);
 
   const addLog = (message) => {
@@ -23,6 +24,7 @@ function SimpleServiceStatusIndicator() {
 
     addLog("Checking service status...");
     setIsLoading(true);
+    setShowAdminHelp(false);
 
     try {
       // Import the invoke function only when needed
@@ -50,6 +52,16 @@ function SimpleServiceStatusIndicator() {
       addLog(`Error checking service: ${error.toString()}`);
       setStatus("error");
       setErrorMsg(error.toString());
+      
+      // Show admin help if it looks like a permissions issue
+      if (
+        error.toString().includes("access denied") || 
+        error.toString().includes("acceso denegado") ||
+        error.toString().includes("privileges") ||
+        error.toString().includes("permission")
+      ) {
+        setShowAdminHelp(true);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -63,6 +75,7 @@ function SimpleServiceStatusIndicator() {
 
     addLog("Starting service...");
     setIsLoading(true);
+    setShowAdminHelp(false);
 
     try {
       // Import the invoke function only when needed
@@ -94,7 +107,37 @@ function SimpleServiceStatusIndicator() {
       addLog(`Error starting service: ${error.toString()}`);
       setStatus("error");
       setErrorMsg(error.toString());
+      
+      // Show admin help if it looks like a permissions issue
+      if (
+        error.toString().includes("access denied") || 
+        error.toString().includes("acceso denegado") ||
+        error.toString().includes("privileges") ||
+        error.toString().includes("permission")
+      ) {
+        setShowAdminHelp(true);
+      }
+      
+    } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Open services.msc
+  const openServicesManager = async () => {
+    try {
+      // Use Windows' native services.msc command via the command prompt
+      const { invoke } = await import("@tauri-apps/api/core");
+      await invoke("echo_test", { message: "Opening Services Manager" });
+      
+      // We'll use a simple command prompt command instead of shell.open
+      await invoke("open_services_manager");
+      addLog("Opened services.msc via command prompt");
+    } catch (error) {
+      addLog(`Error opening Services Manager: ${error.toString()}`);
+      
+      // Provide manual instructions as a fallback
+      alert("Please open Services Manager manually by:\n1. Press Windows+R\n2. Type 'services.msc'\n3. Press Enter");
     }
   };
 
@@ -161,13 +204,33 @@ function SimpleServiceStatusIndicator() {
         {/* Error message */}
         {status === "error" && (
           <div className="text-red-500 text-sm">
-            {errorMsg.includes("Access is denied") 
+            {errorMsg.includes("Access is denied") || errorMsg.includes("acceso denegado")
               ? t("service.accessDenied", "Administrator privileges required")
-              : errorMsg.includes("not found")
+              : errorMsg.includes("not found") || errorMsg.includes("no se encontró")
               ? t("service.notFound", "Service not found")
               : errorMsg.includes("timed out")
               ? "Operation timed out. The service may be busy."
               : errorMsg}
+          </div>
+        )}
+        
+        {/* Admin help panel */}
+        {showAdminHelp && (
+          <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
+            <h4 className="font-bold text-blue-800 mb-1">Need Administrator Rights</h4>
+            <p className="text-blue-700 mb-2">
+              Windows services require elevated privileges to manage. Please try one of these options:
+            </p>
+            <ul className="list-disc list-inside text-blue-600 mb-2 space-y-1">
+              <li>Run the application as Administrator</li>
+              <li>Use the Windows Services Manager to start the service</li>
+            </ul>
+            <button
+              onClick={openServicesManager}
+              className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-xs"
+            >
+              Open Services Manager
+            </button>
           </div>
         )}
         
