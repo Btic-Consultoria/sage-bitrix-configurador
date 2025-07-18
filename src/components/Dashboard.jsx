@@ -4,6 +4,7 @@ import DatabaseConfig from "./DatabaseConfig";
 import Bitrix24Config from "./Bitrix24Config";
 import Companies from "./Companies";
 import GeneralSettings from "./GeneralSettings";
+import FieldMapping from "./FieldMapping";
 import LanguageSwitcher from "./LanguageSwitcher";
 import SimpleServiceStatusIndicator from "./SimpleServiceStatusIndicator";
 import ServiceTestComponent from "./ServiceTestComponent";
@@ -17,7 +18,7 @@ function Dashboard({
   updateConfig,
   onLogout,
 }) {
-  const { t } = useTranslation(); // Add this hook
+  const { t } = useTranslation();
   const [activeSection, setActiveSection] = useState("dashboard");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState(null);
@@ -45,6 +46,9 @@ function Dashboard({
     if (section === "companies") {
       // For companies, directly update the array instead of nesting it
       newConfig.companies = data.companies || data;
+    } else if (section === "fieldMappings") {
+      // For field mappings, directly update the array
+      newConfig.fieldMappings = data;
     } else if (section === "general") {
       // For general settings, update top-level properties
       newConfig = {
@@ -103,7 +107,7 @@ function Dashboard({
 
       // Map configuration to expected JSON structure
       const configJson = {
-        CodigoCliente: localConfig.clientCode || user.username, // Use custom client code or fallback to username
+        CodigoCliente: localConfig.clientCode || user.username,
         DB: {
           DB_Host: localConfig.database.dbHost,
           DB_Host_Sage: localConfig.database.dbHostSage,
@@ -123,6 +127,8 @@ function Dashboard({
           EmpresaBitrix: company.bitrixCompany,
           EmpresaSage: company.sageCompanyCode,
         })),
+        // Add field mappings to the configuration
+        FieldMappings: localConfig.fieldMappings || [],
       };
 
       // Remove null properties
@@ -166,7 +172,7 @@ function Dashboard({
     // If user is not admin and trying to access bitrix24 section, redirect to dashboard
     if (activeSection === "bitrix24" && !isAdmin) {
       setActiveSection("dashboard");
-      return renderContent(); // Recursively call to render dashboard content
+      return renderContent();
     }
 
     switch (activeSection) {
@@ -196,6 +202,13 @@ function Dashboard({
           <Companies
             config={localConfig}
             updateConfig={(data) => handleUpdateConfig("companies", data)}
+          />
+        );
+      case "fieldMapping":
+        return (
+          <FieldMapping
+            config={localConfig}
+            updateConfig={(data) => handleUpdateConfig("fieldMappings", data)}
           />
         );
       default:
@@ -244,143 +257,150 @@ function Dashboard({
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-4xl">
               <ConfigCard
-                title={t("general.title")}
-                description={t("general.clientCodeHelp")}
+                title={t("dashboard.general")}
+                description={t("dashboard.generalDescription")}
                 icon="⚙️"
                 onClick={() => setActiveSection("general")}
               />
               <ConfigCard
-                title={t("database.title")}
-                description={t("database.dbHost")}
-                icon="💾"
+                title={t("dashboard.database")}
+                description={t("dashboard.databaseDescription")}
+                icon="🗄️"
                 onClick={() => setActiveSection("database")}
               />
               {isAdmin && (
                 <ConfigCard
-                  title={t("bitrix24.title")}
-                  description={t("bitrix24.apiTenant")}
-                  icon="🔌"
+                  title={t("dashboard.bitrix24")}
+                  description={t("dashboard.bitrix24Description")}
+                  icon="🔗"
                   onClick={() => setActiveSection("bitrix24")}
                 />
               )}
               <ConfigCard
-                title={t("companies.title")}
-                description={t("companies.addNewMapping")}
+                title={t("dashboard.companies")}
+                description={t("dashboard.companiesDescription")}
                 icon="🏢"
                 onClick={() => setActiveSection("companies")}
+              />
+              <ConfigCard
+                title={t("fieldMapping.title")}
+                description={t("dashboard.fieldMappingDescription")}
+                icon="🔄"
+                onClick={() => setActiveSection("fieldMapping")}
               />
             </div>
 
             <div className="mt-8">
-              <h3 className="text-xl font-semibold text-onyx-600 mb-4">
-                {t("dashboard.serviceStatus", "Service Status")}
-              </h3>
-              <SimpleServiceStatusIndicator />
-              <div className="mt-4">
-                <ServiceTestComponent />
-              </div>
-            </div>
-
-            <div className="mt-8 flex flex-col items-center space-y-4">
               <button
                 onClick={saveConfiguration}
                 disabled={isGenerating}
-                className={`bg-onyx-500 hover:bg-onyx-600 text-brand-white font-bold py-3 px-6 rounded focus:outline-none focus:shadow-outline transition duration-300 ${
-                  isGenerating ? "opacity-70 cursor-not-allowed" : ""
+                className={`px-6 py-3 rounded-lg font-bold transition duration-300 ${
+                  isGenerating
+                    ? "bg-onyx-300 text-onyx-500 cursor-not-allowed"
+                    : "bg-onyx-400 hover:bg-onyx-500 text-brand-white"
                 }`}
               >
                 {isGenerating
                   ? t("dashboard.saving")
                   : t("dashboard.saveConfiguration")}
               </button>
-
-              {generationResult && (
-                <div
-                  className={`mt-4 p-4 rounded-lg ${
-                    generationResult.success
-                      ? "bg-green-100 border border-green-400 text-green-700"
-                      : "bg-red-100 border border-red-400 text-red-700"
-                  }`}
-                >
-                  <p>{generationResult.message}</p>
-                  {generationResult.success && generationResult.filePath && (
-                    <p className="mt-2">
-                      {t("dashboard.fileSavedTo")}{" "}
-                      <span className="font-mono bg-onyx-100 px-2 py-1 rounded">
-                        {generationResult.filePath}
-                      </span>
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
+
+            {/* Service Status and Communication Test - Only in Dashboard */}
+            <div className="mt-6 flex items-center space-x-6">
+              <SimpleServiceStatusIndicator />
+              <ServiceTestComponent />
+            </div>
+
+            {generationResult && (
+              <div
+                className={`mt-4 p-4 rounded-lg max-w-lg w-full ${
+                  generationResult.success
+                    ? "bg-green-100 border border-green-400 text-green-700"
+                    : "bg-red-100 border border-red-400 text-red-700"
+                }`}
+              >
+                <p className="font-semibold">{generationResult.message}</p>
+                {generationResult.filePath && (
+                  <p className="text-sm mt-2">
+                    {t("dashboard.fileSavedTo")} {generationResult.filePath}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         );
     }
   };
 
   return (
-    <div className="min-h-screen bg-onyx-100">
+    <div className="min-h-screen bg-onyx-100 flex flex-col">
       {/* Header */}
-      <header className="bg-brand-black text-brand-white p-4">
-        <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <img src="/btic-logo-black.svg" alt="BTC Logo" className="h-8" />
-            <h1 className="text-xl font-bold">{t("app.title")}</h1>
+      <header className="bg-onyx-400 shadow-lg">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center space-x-6">
+            <h1 className="text-2xl font-bold text-brand-white">
+              {t("app.title")}
+            </h1>
+            <nav className="hidden md:flex space-x-2">
+              <NavLink
+                active={activeSection === "dashboard"}
+                onClick={() => setActiveSection("dashboard")}
+              >
+                {t("dashboard.home")}
+              </NavLink>
+              <NavLink
+                active={activeSection === "general"}
+                onClick={() => setActiveSection("general")}
+              >
+                {t("dashboard.general")}
+              </NavLink>
+              <NavLink
+                active={activeSection === "database"}
+                onClick={() => setActiveSection("database")}
+              >
+                {t("dashboard.database")}
+              </NavLink>
+              {isAdmin && (
+                <NavLink
+                  active={activeSection === "bitrix24"}
+                  onClick={() => setActiveSection("bitrix24")}
+                >
+                  {t("dashboard.bitrix24")}
+                </NavLink>
+              )}
+              <NavLink
+                active={activeSection === "companies"}
+                onClick={() => setActiveSection("companies")}
+              >
+                {t("dashboard.companies")}
+              </NavLink>
+              <NavLink
+                active={activeSection === "fieldMapping"}
+                onClick={() => setActiveSection("fieldMapping")}
+              >
+                {t("fieldMapping.title")}
+              </NavLink>
+            </nav>
           </div>
           <div className="flex items-center space-x-4">
             <LanguageSwitcher />
-            <span className="text-brand-white">
-              {t("app.welcome", { username: user.username })}
-            </span>
             <button
               onClick={onLogout}
-              className="bg-onyx-600 hover:bg-onyx-700 text-brand-white px-3 py-1 rounded transition duration-300"
+              className="bg-red-500 hover:bg-red-600 text-brand-white px-4 py-2 rounded transition duration-300"
             >
-              {t("dialogs.logout")}
+              {t("dashboard.logout")}
             </button>
           </div>
-          <nav className="hidden md:flex space-x-4">
-            <NavLink
-              active={activeSection === "dashboard"}
-              onClick={() => setActiveSection("dashboard")}
-            >
-              {t("dashboard.dashboard")}
-            </NavLink>
-            <NavLink
-              active={activeSection === "general"}
-              onClick={() => setActiveSection("general")}
-            >
-              {t("dashboard.general")}
-            </NavLink>
-            <NavLink
-              active={activeSection === "database"}
-              onClick={() => setActiveSection("database")}
-            >
-              {t("dashboard.database")}
-            </NavLink>
-            {isAdmin && (
-              <NavLink
-                active={activeSection === "bitrix24"}
-                onClick={() => setActiveSection("bitrix24")}
-              >
-                {t("dashboard.bitrix24")}
-              </NavLink>
-            )}
-            <NavLink
-              active={activeSection === "companies"}
-              onClick={() => setActiveSection("companies")}
-            >
-              {t("dashboard.companies")}
-            </NavLink>
-          </nav>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">{renderContent()}</main>
+      <main className="container mx-auto px-4 py-8 flex-grow">
+        {renderContent()}
+      </main>
 
       {/* Footer */}
       <footer className="bg-onyx-200 p-4 text-center text-onyx-700 text-sm">
