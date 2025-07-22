@@ -142,70 +142,90 @@ function FieldMapping({ config, updateConfig }) {
   const [searchBitrix, setSearchBitrix] = useState("");
   const [searchSage, setSearchSage] = useState("");
 
-  // Update local state when props change and auto-create known mappings
+  // ✅ Función para obtener mapeos por defecto (misma que en Dashboard)
+  const getDefaultFieldMappings = () => [
+    {
+      bitrixFieldName: "UF_CRM_COMPANY_CATEGORIA",
+      bitrixFieldType: "string",
+      sageFieldName: "CodigoCategoriaCliente", 
+      sageFieldDescription: "Código de categoría del cliente",
+      isActive: true,
+      isMandatory: true
+    },
+    {
+      bitrixFieldName: "UF_CRM_COMPANY_RAZON",
+      bitrixFieldType: "string", 
+      sageFieldName: "RazonSocial",
+      sageFieldDescription: "Razón social de la empresa",
+      isActive: true,
+      isMandatory: true
+    },
+    {
+      bitrixFieldName: "UF_CRM_COMPANY_DIVISA",
+      bitrixFieldType: "string",
+      sageFieldName: "CodigoDivisa", 
+      sageFieldDescription: "Código de divisa",
+      isActive: true,
+      isMandatory: false
+    },
+    {
+      bitrixFieldName: "UF_CRM_COMPANY_DOMICILIO", 
+      bitrixFieldType: "string",
+      sageFieldName: "Domicilio",
+      sageFieldDescription: "Dirección principal", 
+      isActive: true,
+      isMandatory: false
+    },
+    {
+      bitrixFieldName: "UF_CRM_COMPANY_TELEFONO",
+      bitrixFieldType: "string",
+      sageFieldName: "Telefono",
+      sageFieldDescription: "Número de teléfono",
+      isActive: true, 
+      isMandatory: false
+    },
+    {
+      bitrixFieldName: "UF_CRM_COMPANY_EMAIL",
+      bitrixFieldType: "string", 
+      sageFieldName: "EMail1",
+      sageFieldDescription: "Correo electrónico principal",
+      isActive: true,
+      isMandatory: false
+    }
+  ];
+
+  // ✅ Mejorar useEffect con mejor logging y sincronización
   useEffect(() => {
-    if (Array.isArray(config?.fieldMappings)) {
+    console.log("FieldMapping: Config received:", config); // Debug log
+    console.log("FieldMapping: fieldMappings from config:", config?.fieldMappings); // Debug log
+    
+    if (Array.isArray(config?.fieldMappings) && config.fieldMappings.length > 0) {
+      console.log("FieldMapping: Using existing field mappings"); // Debug log
       setMappedFields(config.fieldMappings);
     } else {
-      // Auto-create mappings for fields that already exist in the connector
-      const knownMappings = [
-        {
-          bitrixFieldName: "UF_CRM_COMPANY_CATEGORIA",
-          bitrixFieldType: "string",
-          sageFieldName: "CodigoCategoriaCliente", 
-          sageFieldDescription: "Código de categoría del cliente",
-          isActive: true,
-          isMandatory: true
-        },
-        {
-          bitrixFieldName: "UF_CRM_COMPANY_RAZON",
-          bitrixFieldType: "string", 
-          sageFieldName: "RazonSocial",
-          sageFieldDescription: "Razón social de la empresa",
-          isActive: true,
-          isMandatory: true
-        },
-        {
-          bitrixFieldName: "UF_CRM_COMPANY_DIVISA",
-          bitrixFieldType: "string",
-          sageFieldName: "CodigoDivisa", 
-          sageFieldDescription: "Código de divisa",
-          isActive: true,
-          isMandatory: false
-        },
-        {
-          bitrixFieldName: "UF_CRM_COMPANY_DOMICILIO", 
-          bitrixFieldType: "string",
-          sageFieldName: "Domicilio",
-          sageFieldDescription: "Dirección principal", 
-          isActive: true,
-          isMandatory: false
-        },
-        {
-          bitrixFieldName: "UF_CRM_COMPANY_TELEFONO",
-          bitrixFieldType: "string",
-          sageFieldName: "Telefono",
-          sageFieldDescription: "Número de teléfono",
-          isActive: true, 
-          isMandatory: false
-        },
-        {
-          bitrixFieldName: "UF_CRM_COMPANY_EMAIL",
-          bitrixFieldType: "string", 
-          sageFieldName: "EMail1",
-          sageFieldDescription: "Correo electrónico principal",
-          isActive: true,
-          isMandatory: false
-        }
-      ];
+      console.log("FieldMapping: Creating default field mappings"); // Debug log
+      const defaultMappings = getDefaultFieldMappings();
+      setMappedFields(defaultMappings);
       
-      setMappedFields(knownMappings);
-      updateConfig(knownMappings);
+      // ✅ Usar setTimeout para asegurar que la actualización se propaga correctamente
+      setTimeout(() => {
+        console.log("FieldMapping: Updating config with default mappings:", defaultMappings); // Debug log
+        updateConfig(defaultMappings);
+      }, 100);
     }
   }, [config, updateConfig]);
 
-  // Add new mapping
+  // ✅ Función helper para actualizar mapeos con logging
+  const updateMappedFields = (newMappings) => {
+    console.log("FieldMapping: Updating mapped fields:", newMappings); // Debug log
+    setMappedFields(newMappings);
+    updateConfig(newMappings);
+  };
+
+  // ✅ Mejorar add mapping con mejor logging
   const addMapping = (bitrixField, sageField) => {
+    console.log("FieldMapping: Adding mapping:", { bitrixField, sageField }); // Debug log
+    
     const newMapping = {
       bitrixFieldName: bitrixField.name,
       bitrixFieldType: bitrixField.type,
@@ -216,24 +236,26 @@ function FieldMapping({ config, updateConfig }) {
     };
 
     const updatedMappings = [...mappedFields, newMapping];
-    setMappedFields(updatedMappings);
-    updateConfig(updatedMappings);
+    console.log("FieldMapping: New mappings array:", updatedMappings); // Debug log
+    updateMappedFields(updatedMappings);
   };
 
-  // Remove mapping
+  // ✅ Mejorar remove mapping
   const removeMapping = (index) => {
+    console.log("FieldMapping: Removing mapping at index:", index); // Debug log
     const updatedMappings = mappedFields.filter((_, i) => i !== index);
-    setMappedFields(updatedMappings);
-    updateConfig(updatedMappings);
+    console.log("FieldMapping: Mappings after removal:", updatedMappings); // Debug log
+    updateMappedFields(updatedMappings);
   };
 
-  // Toggle mapping status
+  // ✅ Mejorar toggle mapping
   const toggleMapping = (index) => {
+    console.log("FieldMapping: Toggling mapping at index:", index); // Debug log
     const updatedMappings = mappedFields.map((mapping, i) =>
       i === index ? { ...mapping, isActive: !mapping.isActive } : mapping
     );
-    setMappedFields(updatedMappings);
-    updateConfig(updatedMappings);
+    console.log("FieldMapping: Mappings after toggle:", updatedMappings); // Debug log
+    updateMappedFields(updatedMappings);
   };
 
   // Check if field is already mapped
@@ -278,6 +300,24 @@ function FieldMapping({ config, updateConfig }) {
         <h2 className="text-2xl font-bold mb-6 text-onyx-600">
           {t("fieldMapping.title")}
         </h2>
+
+        {/* ✅ Añadir información de debug en desarrollo */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+            <details>
+              <summary className="cursor-pointer text-sm font-semibold text-yellow-800">
+                🐛 Debug Info (Development Only)
+              </summary>
+              <div className="mt-2 text-xs text-yellow-700">
+                <p><strong>Mapped fields count:</strong> {mappedFields.length}</p>
+                <p><strong>Config field mappings:</strong> {config?.fieldMappings?.length || 0}</p>
+                <pre className="mt-2 text-xs bg-yellow-100 p-2 rounded max-h-40 overflow-auto">
+                  {JSON.stringify(mappedFields, null, 2)}
+                </pre>
+              </div>
+            </details>
+          </div>
+        )}
 
         {/* Search bars */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

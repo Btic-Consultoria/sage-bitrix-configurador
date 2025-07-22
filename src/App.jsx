@@ -107,8 +107,62 @@ function App() {
     setShowCloseConfirmation(false);
   };
 
-  // Handle successful login
+  // ✅ Función para obtener mapeos por defecto
+  const getDefaultFieldMappings = () => [
+    {
+      bitrixFieldName: "UF_CRM_COMPANY_CATEGORIA",
+      bitrixFieldType: "string",
+      sageFieldName: "CodigoCategoriaCliente",
+      sageFieldDescription: "Código de categoría del cliente",
+      isActive: true,
+      isMandatory: true,
+    },
+    {
+      bitrixFieldName: "UF_CRM_COMPANY_RAZON",
+      bitrixFieldType: "string",
+      sageFieldName: "RazonSocial",
+      sageFieldDescription: "Razón social de la empresa",
+      isActive: true,
+      isMandatory: true,
+    },
+    {
+      bitrixFieldName: "UF_CRM_COMPANY_DIVISA",
+      bitrixFieldType: "string",
+      sageFieldName: "CodigoDivisa",
+      sageFieldDescription: "Código de divisa",
+      isActive: true,
+      isMandatory: false,
+    },
+    {
+      bitrixFieldName: "UF_CRM_COMPANY_DOMICILIO",
+      bitrixFieldType: "string",
+      sageFieldName: "Domicilio",
+      sageFieldDescription: "Dirección principal",
+      isActive: true,
+      isMandatory: false,
+    },
+    {
+      bitrixFieldName: "UF_CRM_COMPANY_TELEFONO",
+      bitrixFieldType: "string",
+      sageFieldName: "Telefono",
+      sageFieldDescription: "Número de teléfono",
+      isActive: true,
+      isMandatory: false,
+    },
+    {
+      bitrixFieldName: "UF_CRM_COMPANY_EMAIL",
+      bitrixFieldType: "string",
+      sageFieldName: "EMail1",
+      sageFieldDescription: "Correo electrónico principal",
+      isActive: true,
+      isMandatory: false,
+    },
+  ];
+
+  // ✅ Handle successful login - Mejorado
   const handleLogin = (userData, authToken, initialConfig = null) => {
+    console.log("App: Login successful", { userData, initialConfig }); // Debug log
+
     // Set user and auth info
     setToken(authToken);
     setUser(userData);
@@ -117,26 +171,45 @@ function App() {
     const configLoaded = !!initialConfig;
     setConfigFromStorage(configLoaded);
 
-    // Set initial config from decrypted file or empty defaults
-    setConfig(
-      initialConfig || {
-        database: {
-          dbHost: "",
-          dbHostSage: "",
-          dbPort: "",
-          dbDatabase: "",
-          dbUsername: "",
-          dbPassword: "",
-          license: "",
-        },
-        bitrix24: {
-          apiTenant: "",
-          packEmpresa: false,
-        },
-        companies: [],
-      }
-    );
+    // ✅ Crear configuración inicial con fieldMappings incluidos
+    const defaultConfig = {
+      database: {
+        dbHost: "",
+        dbHostSage: "",
+        dbPort: "",
+        dbDatabase: "",
+        dbUsername: "",
+        dbPassword: "",
+        license: "",
+      },
+      bitrix24: {
+        apiTenant: "",
+        packEmpresa: false,
+      },
+      companies: [],
+      fieldMappings: getDefaultFieldMappings(), // ✅ Incluir siempre mapeos por defecto
+    };
 
+    // ✅ Merge con la configuración inicial si existe
+    let finalConfig;
+    if (initialConfig) {
+      console.log("App: Using loaded config from storage"); // Debug log
+      finalConfig = {
+        ...defaultConfig,
+        ...initialConfig,
+        // ✅ Asegurar que fieldMappings existe, usar default si no hay ninguno
+        fieldMappings:
+          initialConfig.fieldMappings && initialConfig.fieldMappings.length > 0
+            ? initialConfig.fieldMappings
+            : getDefaultFieldMappings(),
+      };
+    } else {
+      console.log("App: Using default config"); // Debug log
+      finalConfig = defaultConfig;
+    }
+
+    console.log("App: Final config to set:", finalConfig); // Debug log
+    setConfig(finalConfig);
     setIsAuthenticated(true);
   };
 
@@ -161,6 +234,7 @@ function App() {
 
   // Update config data
   const updateConfig = (newConfig) => {
+    console.log("App: Config updated:", newConfig); // Debug log
     setConfig(newConfig);
   };
 
