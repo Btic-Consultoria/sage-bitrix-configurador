@@ -10,6 +10,7 @@ import SimpleServiceStatusIndicator from "./SimpleServiceStatusIndicator";
 import ServiceTestComponent from "./ServiceTestComponent";
 import ConfigDebugPanel from "./ConfigDebugPanel";
 import { invoke } from "@tauri-apps/api/core";
+import BitrixFieldService from "../services/BitrixFieldService";
 
 function Dashboard({
   user,
@@ -24,160 +25,252 @@ function Dashboard({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState(null);
 
-  // ✅ Función para obtener mapeos por defecto
-  const getDefaultFieldMappings = () => [
-    {
-      bitrixFieldName: "UF_CRM_COMPANY_CATEGORIA",
-      bitrixFieldType: "string",
-      sageFieldName: "CodigoCategoriaCliente",
-      sageFieldDescription: "Código de categoría del cliente",
-      isActive: true,
-      isMandatory: true
-    },
-    {
-      bitrixFieldName: "UF_CRM_COMPANY_RAZON",
-      bitrixFieldType: "string",
-      sageFieldName: "RazonSocial",
-      sageFieldDescription: "Razón social de la empresa",
-      isActive: true,
-      isMandatory: true
-    },
-    {
-      bitrixFieldName: "UF_CRM_COMPANY_DIVISA",
-      bitrixFieldType: "string",
-      sageFieldName: "CodigoDivisa",
-      sageFieldDescription: "Código de divisa",
-      isActive: true,
-      isMandatory: false
-    },
-    {
-      bitrixFieldName: "UF_CRM_COMPANY_DOMICILIO",
-      bitrixFieldType: "string",
-      sageFieldName: "Domicilio",
-      sageFieldDescription: "Dirección principal",
-      isActive: true,
-      isMandatory: false
-    },
-    {
-      bitrixFieldName: "UF_CRM_COMPANY_TELEFONO",
-      bitrixFieldType: "string",
-      sageFieldName: "Telefono",
-      sageFieldDescription: "Número de teléfono",
-      isActive: true,
-      isMandatory: false
-    },
-    {
-      bitrixFieldName: "UF_CRM_COMPANY_EMAIL",
-      bitrixFieldType: "string",
-      sageFieldName: "EMail1",
-      sageFieldDescription: "Correo electrónico principal",
-      isActive: true,
-      isMandatory: false
-    }
-  ];
-
-  // ✅ Mejorar inicialización del estado local
+  // Estado local de configuración inicializado correctamente
   const [localConfig, setLocalConfig] = useState(() => {
-    const baseConfig = {
-      ...config,
-      clientCode: config?.clientCode || user.username,
-      fieldMappings: config?.fieldMappings || [],
-    };
-    
-    // Si no hay fieldMappings, crear los mapeos por defecto
-    if (!baseConfig.fieldMappings || baseConfig.fieldMappings.length === 0) {
-      baseConfig.fieldMappings = getDefaultFieldMappings();
+    if (config) {
+      return config;
     }
-    
-    return baseConfig;
+    return {
+      clientCode: "",
+      database: {
+        dbHost: "",
+        dbHostSage: "",
+        dbPort: "1433",
+        dbDatabase: "",
+        dbUsername: "",
+        dbPassword: "",
+        license: "",
+      },
+      bitrix24: {
+        apiTenant: "",
+        packEmpresa: false,
+      },
+      companies: [],
+      fieldMappings: [],
+    };
   });
 
-  // Check if user is admin
-  const isAdmin = user.userType === "admin";
+  // Verificar si el usuario es admin
+  const isAdmin = user?.role === "admin";
 
-  // ✅ Mejorar useEffect para sincronización
-  useEffect(() => {
-    console.log("Dashboard: Config updated", config); // Debug log
-    
-    const newConfig = {
-      ...config,
-      clientCode: config?.clientCode || user.username,
-      fieldMappings: config?.fieldMappings?.length > 0 ? config.fieldMappings : getDefaultFieldMappings(),
-    };
-    
-    // Solo actualizar si realmente hay cambios
-    const configChanged = JSON.stringify(newConfig) !== JSON.stringify(localConfig);
-    if (configChanged) {
-      console.log("Dashboard: Updating local config", newConfig); // Debug log
-      setLocalConfig(newConfig);
-    }
-  }, [config, user.username]);
+  // ✅ Función para obtener mapeos por defecto en la nueva estructura
+  const getDefaultFieldMappings = () => ({
+    Company: [
+      {
+        bitrixFieldName: "UF_CRM_COMPANY_CATEGORIA",
+        sageFieldName: "CodigoCategoriaCliente",
+      },
+      {
+        bitrixFieldName: "UF_CRM_COMPANY_RAZON",
+        sageFieldName: "RazonSocial",
+      },
+      {
+        bitrixFieldName: "UF_CRM_COMPANY_DIVISA",
+        sageFieldName: "CodigoDivisa",
+      },
+      {
+        bitrixFieldName: "UF_CRM_COMPANY_DOMICILIO",
+        sageFieldName: "Domicilio",
+      },
+      {
+        bitrixFieldName: "UF_CRM_COMPANY_TELEFONO",
+        sageFieldName: "Telefono",
+      },
+      {
+        bitrixFieldName: "UF_CRM_COMPANY_EMAIL",
+        sageFieldName: "EMail1",
+      },
+    ],
+  });
 
-  // ✅ Mejorar handleUpdateConfig para mejor debugging
-  const handleUpdateConfig = (section, data) => {
-    console.log(`Dashboard: Updating ${section} with:`, data); // Debug log
-    
-    let newConfig = { ...localConfig };
-
-    if (section === "companies") {
-      newConfig.companies = Array.isArray(data) ? data : (data.companies || []);
-    } else if (section === "fieldMappings") {
-      newConfig.fieldMappings = Array.isArray(data) ? data : [];
-      console.log("Dashboard: Field mappings updated to:", newConfig.fieldMappings); // Debug log
-    } else if (section === "general") {
-      newConfig = {
-        ...newConfig,
-        ...data,
-      };
-    } else {
-      newConfig[section] = {
-        ...newConfig[section],
-        ...data,
-      };
+  // ✅ Función para migrar estructura antigua a nueva
+  const migrateFieldMappingsToNewStructure = (oldMappings) => {
+    if (!oldMappings || !Array.isArray(oldMappings)) {
+      return getDefaultFieldMappings();
     }
 
-    console.log("Dashboard: New config state:", newConfig); // Debug log
-    
-    setLocalConfig(newConfig);
-    updateConfig(newConfig);
+    const newStructure = { Company: [] };
+
+    oldMappings.forEach((mapping) => {
+      // Solo incluir mapeos activos en la nueva estructura
+      if (
+        mapping.isActive &&
+        mapping.bitrixFieldName &&
+        mapping.sageFieldName
+      ) {
+        // Determinar la entidad basándose en el nombre del campo
+        let entityType = "Company";
+        if (mapping.bitrixFieldName.includes("_PRODUCT_")) {
+          entityType = "Product";
+        } else if (mapping.bitrixFieldName.includes("_COMPANY_")) {
+          entityType = "Company";
+        }
+
+        if (!newStructure[entityType]) {
+          newStructure[entityType] = [];
+        }
+
+        newStructure[entityType].push({
+          bitrixFieldName: mapping.bitrixFieldName,
+          sageFieldName: mapping.sageFieldName,
+        });
+      }
+    });
+
+    // Si no hay mapeos, usar los por defecto
+    if (
+      Object.keys(newStructure).length === 0 ||
+      (newStructure.Company && newStructure.Company.length === 0)
+    ) {
+      return getDefaultFieldMappings();
+    }
+
+    return newStructure;
   };
 
-  // ✅ Mejorar saveConfiguration con validación y debugging
-  const saveConfiguration = async () => {
-    console.log("Dashboard: Starting save configuration with:", localConfig); // Debug log
-    
+  // ✅ Función para obtener y organizar campos desde Bitrix24
+  const fetchAndOrganizeFieldMappings = async (localConfig) => {
+    try {
+      // Solo intentar si tenemos configuración de Bitrix24
+      if (!localConfig?.bitrix24?.apiTenant) {
+        console.log("No Bitrix24 API configured, using local mappings");
+        return localConfig?.fieldMappings || getDefaultFieldMappings();
+      }
+
+      console.log("Fetching fields from Bitrix24 API...");
+      const bitrixService = new BitrixFieldService(
+        localConfig.bitrix24.apiTenant
+      );
+
+      // Obtener campos por entidad desde Bitrix24
+      const fieldsByEntity = await bitrixService.getAllFieldsByEntity();
+
+      // Convertir a la nueva estructura preservando mapeos existentes
+      const existingMappings = Array.isArray(localConfig.fieldMappings)
+        ? localConfig.fieldMappings
+        : [];
+
+      const newFieldMappings =
+        BitrixFieldService.convertToNewFieldMappingsStructure(
+          fieldsByEntity,
+          existingMappings
+        );
+
+      // Si no se encontraron mapeos válidos, usar los por defecto
+      if (Object.keys(newFieldMappings).length === 0) {
+        console.log("No valid field mappings found, using defaults");
+        return getDefaultFieldMappings();
+      }
+
+      console.log("Field mappings organized by entity:", newFieldMappings);
+      return newFieldMappings;
+    } catch (error) {
+      console.error("Error fetching Bitrix24 fields:", error);
+      console.log("Falling back to local field mappings");
+
+      // Fallback: usar mapeos locales o por defecto
+      return localConfig?.fieldMappings || getDefaultFieldMappings();
+    }
+  };
+  useEffect(() => {
+    if (config && config !== localConfig) {
+      console.log("Dashboard: Syncing external config to local state:", config);
+      setLocalConfig(config);
+    }
+  }, [config]);
+
+  // ✅ Manejar actualizaciones de configuración
+  const handleUpdateConfig = (section, data) => {
+    console.log(
+      `Dashboard: Updating config section "${section}" with data:`,
+      data
+    );
+
+    const newLocalConfig = { ...localConfig };
+
+    if (section === "general") {
+      // Actualizar configuración general
+      Object.assign(newLocalConfig, data);
+    } else {
+      // Actualizar sección específica
+      newLocalConfig[section] = { ...newLocalConfig[section], ...data };
+    }
+
+    console.log("Dashboard: New local config:", newLocalConfig);
+    setLocalConfig(newLocalConfig);
+
+    // Propagar cambios hacia arriba
+    if (updateConfig) {
+      updateConfig(newLocalConfig);
+    }
+  };
+
+  // ✅ Función principal para generar archivo de configuración
+  const saveConfigurationFile = async () => {
     setIsGenerating(true);
     setGenerationResult(null);
 
     try {
-      // ✅ Asegurar que fieldMappings existe y tiene contenido
-      const finalFieldMappings = localConfig.fieldMappings && localConfig.fieldMappings.length > 0 
-        ? localConfig.fieldMappings 
-        : getDefaultFieldMappings();
+      console.log(
+        "Dashboard: Starting configuration save with local config:",
+        localConfig
+      );
 
-      console.log("Dashboard: Final field mappings for save:", finalFieldMappings); // Debug log
+      // ✅ Obtener y organizar field mappings (nueva estructura)
+      let finalFieldMappings;
 
-      // Validate configuration data
+      if (Array.isArray(localConfig.fieldMappings)) {
+        // Migrar estructura antigua a nueva
+        console.log("Dashboard: Migrating old field mappings structure");
+        finalFieldMappings = migrateFieldMappingsToNewStructure(
+          localConfig.fieldMappings
+        );
+      } else if (typeof localConfig.fieldMappings === "object") {
+        // Ya está en la nueva estructura
+        finalFieldMappings = localConfig.fieldMappings;
+      } else {
+        // Obtener desde Bitrix24 o usar por defecto
+        finalFieldMappings = await fetchAndOrganizeFieldMappings(localConfig);
+      }
+
+      console.log(
+        "Dashboard: Final field mappings for save:",
+        finalFieldMappings
+      );
+
+      // Validar datos de configuración
       const missingFields = [];
 
-      // Check database config
-      if (!localConfig?.database?.dbHost) missingFields.push(t("database.dbHost"));
-      if (!localConfig?.database?.dbDatabase) missingFields.push(t("database.dbDatabase"));
-      if (!localConfig?.database?.dbUsername) missingFields.push(t("database.dbUsername"));
-      if (!localConfig?.database?.dbPassword) missingFields.push(t("database.dbPassword"));
+      // Verificar configuración de base de datos
+      if (!localConfig?.database?.dbHost)
+        missingFields.push(t("database.dbHost"));
+      if (!localConfig?.database?.dbDatabase)
+        missingFields.push(t("database.dbDatabase"));
+      if (!localConfig?.database?.dbUsername)
+        missingFields.push(t("database.dbUsername"));
+      if (!localConfig?.database?.dbPassword)
+        missingFields.push(t("database.dbPassword"));
 
-      // Check Bitrix config - only if user is admin
-      if (isAdmin && !localConfig?.bitrix24?.apiTenant) missingFields.push(t("bitrix24.apiTenant"));
+      // Verificar configuración Bitrix - solo si el usuario es admin
+      if (isAdmin && !localConfig?.bitrix24?.apiTenant)
+        missingFields.push(t("bitrix24.apiTenant"));
 
-      // Check if companies exist
-      if (!localConfig?.companies?.length) missingFields.push(t("dashboard.companies"));
+      // Verificar si existen companies
+      if (!localConfig?.companies?.length)
+        missingFields.push(t("dashboard.companies"));
 
-      // Check client code
+      // Verificar código de cliente
       if (!localConfig?.clientCode) missingFields.push(t("general.clientCode"));
 
-      // ✅ Validar que hay field mappings
-      if (!finalFieldMappings.length) {
+      // ✅ Validar que hay field mappings en la nueva estructura
+      const totalMappings = Object.values(finalFieldMappings).reduce(
+        (total, entityMappings) => total + (entityMappings?.length || 0),
+        0
+      );
+
+      if (totalMappings === 0) {
         console.warn("Dashboard: No field mappings found, using defaults");
+        finalFieldMappings = getDefaultFieldMappings();
       }
 
       if (missingFields.length > 0) {
@@ -186,7 +279,7 @@ function Dashboard({
         return;
       }
 
-      // ✅ Map configuration to expected JSON structure con fieldMappings incluidos
+      // ✅ Mapear configuración a estructura JSON esperada con nueva estructura de FieldMappings
       const configJson = {
         CodigoCliente: localConfig.clientCode || user.username,
         DB: {
@@ -198,48 +291,49 @@ function Dashboard({
           DB_Password: localConfig.database.dbPassword,
           IdLlicencia: localConfig.database.license,
         },
-        Bitrix24: isAdmin ? {
-          API_Tenant: localConfig.bitrix24.apiTenant,
-          pack_empresa: Boolean(localConfig.bitrix24.packEmpresa),
-        } : null,
+        Bitrix24: isAdmin
+          ? {
+              API_Tenant: localConfig.bitrix24.apiTenant,
+              pack_empresa: Boolean(localConfig.bitrix24.packEmpresa),
+            }
+          : null,
         Empresas: (localConfig.companies || []).map((company) => ({
           EmpresaBitrix: company.bitrixCompany,
           EmpresaSage: company.sageCompanyCode,
         })),
-        // ✅ Asegurar que FieldMappings siempre se incluye
-        FieldMappings: finalFieldMappings
+        // ✅ Nueva estructura de FieldMappings organizada por entidades
+        FieldMappings: finalFieldMappings,
       };
 
-      // Remove null properties
+      // Remover propiedades null
       if (!configJson.Bitrix24) {
         delete configJson.Bitrix24;
       }
 
-      console.log("Dashboard: Final config JSON to save:", configJson); // Debug log
+      console.log("Dashboard: Final config JSON to save:", configJson);
 
-      // Convert to JSON string
+      // Convertir a string JSON
       const jsonString = JSON.stringify(configJson, null, 2);
-      console.log("Dashboard: JSON string to encrypt:", jsonString); // Debug log
+      console.log("Dashboard: JSON string to encrypt:", jsonString);
 
-      // Define output path
+      // Definir ruta de salida
       const outputPath = `config`;
 
-      // Call the Rust encryption function via Tauri
+      // Llamar a la función de encriptación de Rust via Tauri
       const result = await invoke("encrypt_json", {
         jsonData: jsonString,
         outputPath: outputPath,
         charKey: "T",
       });
 
-      console.log("Dashboard: Encryption result:", result); // Debug log
+      console.log("Dashboard: Encryption result:", result);
 
-      // Show success message
+      // Mostrar mensaje de éxito
       setGenerationResult({
         success: true,
         message: result.message,
         filePath: result.file_path,
       });
-
     } catch (error) {
       console.error("Dashboard: Error saving configuration file:", error);
       setGenerationResult({
@@ -251,12 +345,12 @@ function Dashboard({
     }
   };
 
-  // Render the appropriate content based on active section
+  // ✅ Renderizar contenido apropiado basado en la sección activa
   const renderContent = () => {
-    // If user is not admin and trying to access bitrix24 section, redirect to dashboard
+    // Si el usuario no es admin y trata de acceder a bitrix24, redirigir a dashboard
     if (activeSection === "bitrix24" && !isAdmin) {
       setActiveSection("dashboard");
-      return renderContent();
+      return renderContent(); // Llamada recursiva para renderizar dashboard
     }
 
     switch (activeSection) {
@@ -305,59 +399,20 @@ function Dashboard({
               {t("dashboard.welcome")}
             </p>
 
-            {/* ✅ Testing button for development */}
-            {process.env.NODE_ENV === 'development' && (
-              <button
-                onClick={() => {
-                  console.log("=== CONFIG TEST ===");
-                  console.log("Local config:", localConfig);
-                  console.log("Field mappings:", localConfig.fieldMappings);
-                  console.log("Field mappings count:", localConfig.fieldMappings?.length);
-                  console.log("=== END TEST ===");
-                }}
-                className="bg-red-500 text-white p-2 rounded mb-4"
-              >
-                🧪 Test Config State
-              </button>
-            )}
-
-            {/* User profile information if available */}
+            {/* Información del perfil del usuario si está disponible */}
             {user.profile && (
-              <div className="bg-onyx-100 p-4 rounded-lg max-w-lg w-full">
-                <h3 className="text-lg font-semibold mb-2">
-                  {t("dashboard.yourProfile")}
+              <div className="bg-brand-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-onyx-600 mb-2">
+                  {t("dashboard.profile")}
                 </h3>
-                <p>
-                  {t("dashboard.userType")}: {user.userType || "Standard"}
-                </p>
-                <p>
-                  {t("dashboard.company")}: {user.company || "N/A"}
+                <p className="text-onyx-500">
+                  {user.profile.name || user.username}
                 </p>
               </div>
             )}
 
-            {configFromStorage && (
-              <div className="bg-green-100 border border-green-400 text-green-700 p-4 rounded-lg max-w-lg w-full">
-                <div className="flex items-center">
-                  <svg
-                    className="h-5 w-5 mr-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  <span>{t("dashboard.configLoaded")}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-4xl">
+            {/* Tarjetas de configuración para acceso rápido */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl w-full">
               <ConfigCard
                 title={t("dashboard.general")}
                 description={t("dashboard.generalDescription")}
@@ -386,20 +441,19 @@ function Dashboard({
               />
               <ConfigCard
                 title={t("fieldMapping.title")}
-                description={t("dashboard.fieldMappingDescription")}
+                description={t("fieldMapping.description")}
                 icon="🔄"
                 onClick={() => setActiveSection("fieldMapping")}
               />
             </div>
 
-            <div className="mt-8">
+            {/* Botón para generar archivo de configuración */}
+            <div className="mt-6 flex flex-col items-center space-y-4">
               <button
-                onClick={saveConfiguration}
+                onClick={saveConfigurationFile}
                 disabled={isGenerating}
-                className={`px-6 py-3 rounded-lg font-bold transition duration-300 ${
-                  isGenerating
-                    ? "bg-onyx-300 text-onyx-500 cursor-not-allowed"
-                    : "bg-onyx-400 hover:bg-onyx-500 text-brand-white"
+                className={`px-8 py-3 bg-onyx-600 text-brand-white rounded-lg shadow-md hover:bg-onyx-700 transition duration-300 ${
+                  isGenerating ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
                 {isGenerating
@@ -408,12 +462,13 @@ function Dashboard({
               </button>
             </div>
 
-            {/* Service Status and Communication Test - Only in Dashboard */}
+            {/* Estado del servicio y comunicación de prueba - Solo en Dashboard */}
             <div className="mt-6 flex items-center space-x-6">
               <SimpleServiceStatusIndicator />
               <ServiceTestComponent />
             </div>
 
+            {/* Resultado de la generación */}
             {generationResult && (
               <div
                 className={`mt-4 p-4 rounded-lg max-w-lg w-full ${
@@ -429,6 +484,22 @@ function Dashboard({
                   </p>
                 )}
               </div>
+            )}
+
+            {/* ✅ Botón de prueba para desarrollo */}
+            {process.env.NODE_ENV === "development" && (
+              <button
+                onClick={() => {
+                  console.log("=== CONFIG DEBUG ===");
+                  console.log("Local config:", localConfig);
+                  console.log("Props config:", config);
+                  console.log("User:", user);
+                  console.log("Active section:", activeSection);
+                }}
+                className="px-4 py-2 bg-yellow-500 text-white rounded"
+              >
+                🐛 Debug Config
+              </button>
             )}
           </div>
         );
@@ -507,19 +578,19 @@ function Dashboard({
         {t("footer.copyright")}
       </footer>
 
-      {/* ✅ Debug Panel for development */}
-      {process.env.NODE_ENV === 'development' && (
-        <ConfigDebugPanel 
-          config={config} 
-          localConfig={localConfig} 
-          user={user} 
+      {/* ✅ Panel de debug para desarrollo */}
+      {process.env.NODE_ENV === "development" && (
+        <ConfigDebugPanel
+          config={config}
+          localConfig={localConfig}
+          user={user}
         />
       )}
     </div>
   );
 }
 
-// Helper Components
+// Componentes helper
 function NavLink({ children, active, onClick }) {
   return (
     <button
